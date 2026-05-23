@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-center">Inventory</h2>
+
+  <form method="GET" action="{{ url_for('view_inventory') }}" class="row g-2 mb-4 justify-content-center align-items-end">
+    <div class="col-auto">
+      <input type="text" name="q" class="form-control shadow-sm" style="min-width: 300px;" placeholder="Search by item name or SKU" value="{{ request.args.get('q', '') }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+    <div class="col-auto">
+      <a href="{{ url_for('view_inventory') }}" class="btn btn-danger">Clear</a>
+    </div>
+  </form>
+
+  {% if inventory %}
+    <div class="table-responsive">
+      <table class="table table-striped table-bordered align-middle text-start">
+        <thead class="table-light">
+          <tr>
+            <th>Item Name</th>
+            <th>SKU</th>
+            <th>Unit Price (INR)</th>
+            <th>Available Quantity</th>
+            <th>Tax %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in inventory %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.sku }}</td>
+            <td>{{ '%.2f'|format(item.unitPrice or 0) }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.taxPercentage }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="text-center text-muted">No inventory items found.</p>
+  {% endif %}
+</div>
+{% endblock %}

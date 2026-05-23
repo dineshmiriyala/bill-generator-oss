@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="container my-4">
+    <h1 class="mb-4">Backup Management</h1>
+
+    <section class="mb-4 d-flex align-items-center justify-content-start gap-3">
+        <div class="me-auto border p-2 rounded
+            {% if days_ago != 'N/A' and days_ago <= 30 %}
+                bg-success text-white
+            {% elif days_ago != 'N/A' and days_ago > 30 %}
+                text-white
+            {% else %}
+                bg-warning text-dark
+            {% endif %}
+            " style="min-width: 220px; {% if days_ago != 'N/A' and days_ago > 30 %}background-color:#b22222;{% endif %}">
+            Last backup:
+            <span>
+                {% if last_backup_date %}
+                    {{ last_backup_date.split(' ')[0] }}
+                {% else %}
+                    Never
+                {% endif %}
+            </span>
+            {% if days_ago != "N/A" %}
+                <span class="badge bg-light text-dark ms-2">{{ days_ago }} days ago</span>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="mb-4 d-flex justify-content-between">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#downloadBackupModal">
+            Download Backup
+        </button>
+        <button type="button" class="btn btn-danger" id="toggleRestoreBtn">Restore From Old Backup</button>
+    </section>
+
+    <section class="mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="card-title mb-3">Backup status log</h2>
+                <p class="text-muted small">Showing only the last 5 backups</p>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">Time</th>
+                            <th scope="col">Days Ago</th>
+                            <th scope="col">Action</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in backup_logs %}
+                        <tr>
+                          <td>{{ log.occurred_at.strftime("%Y-%m-%d") }}</td>
+                          <td>
+                            {{ log.days_ago }} days ago
+                          </td>
+                          <td>{{ log.note or 'Backup' }}</td>
+                          <td><span class="badge bg-success">Success</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="text-center">No backup activity yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <form id="restoreForm" method="post" enctype="multipart/form-data" action="{{ url_for('backup_page') }}" class="mt-3 d-none">
+        <div class="mb-3 text-danger">
+            Warning: Restoring a backup will replace existing data. Please ensure you have a current backup before proceeding.
+        </div>
+        <div class="mb-3">
+            <input type="file" name="backupFile" id="backupFile" class="form-control" accept=".bak,.zip,.tar,.db" required>
+        </div>
+        <button type="button" class="btn btn-success" id="restoreBtn">Restore Backup</button>
+    </form>
+</main>
+
+<!-- Download Backup Modal -->
+<div class="modal fade" id="downloadBackupModal" tabindex="-1" aria-labelledby="downloadBackupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="downloadBackupModalLabel">Confirm Download Backup</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 text-danger">
+          Warning: Downloading a backup will save sensitive data to your device. Please ensure you keep it secure.
+        </div>
+        <p>Please follow these steps to locate and share your backup file:</p>
+        <ol>
+          <li>Open your computer's <strong>Downloads</strong> folder.</li>
+          <li>Find the backup file you just downloaded. It will typically have a <code>.db</code> extension.</li>
+          <li>Open your Gmail account and compose a new email.</li>
+          <li>Click the <strong>Attach files</strong> button (paperclip icon) in the compose window.</li>
+          <li>Navigate to the <strong>Downloads</strong> folder and select the backup file.</li>
+          <li>Send the email to your desired recipient.</li>
+        </ol>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="downloadConfirmBtn">Got it, Download Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Restore Confirmation Modal -->
+<div class="modal fade" id="restoreConfirmModal" tabindex="-1" aria-labelledby="restoreConfirmModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="restoreConfirmModalLabel">Confirm Restore</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 text-danger">
+          Warning: Restoring a backup will replace existing data. Please ensure you have a current backup before proceeding.
+        </div>
+        <label for="restoreConfirmInput" class="form-label">Type "confirm" to proceed:</label>
+        <input type="text" id="restoreConfirmInput" class="form-control" autocomplete="off" />
+        <div id="restoreErrorMsg" class="text-danger mt-2" style="display:none;">You must type "confirm" to restore the backup.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="restoreConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Toggle restore form
+    const toggleRestoreBtn = document.getElementById('toggleRestoreBtn');
+    const restoreForm = document.getElementById('restoreForm');
+    toggleRestoreBtn.addEventListener('click', function() {
+        restoreForm.classList.toggle('d-none');
+    });
+
+    // Restore modal elements
+    const restoreBtn = document.getElementById('restoreBtn');
+    const restoreConfirmModalEl = document.getElementById('restoreConfirmModal');
+    const restoreConfirmBtn = document.getElementById('restoreConfirmBtn');
+    const restoreConfirmInput = document.getElementById('restoreConfirmInput');
+    const restoreErrorMsg = document.getElementById('restoreErrorMsg');
+    const restoreFormElement = restoreForm;
+
+    let restoreModal = null;
+    if (typeof bootstrap !== 'undefined') {
+        restoreModal = new bootstrap.Modal(restoreConfirmModalEl);
+    }
+
+    restoreBtn.addEventListener('click', function() {
+        restoreConfirmInput.value = '';
+        restoreErrorMsg.style.display = 'none';
+        if (restoreModal) {
+            restoreModal.show();
+        } else {
+            restoreConfirmModalEl.style.display = 'block';
+        }
+    });
+
+    restoreConfirmBtn.addEventListener('click', function() {
+        if (restoreConfirmInput.value.trim() === 'confirm') {
+            restoreErrorMsg.style.display = 'none';
+            if (restoreModal) {
+                restoreModal.hide();
+            }
+            // Submit the restore form
+            setTimeout(() => {
+                restoreFormElement.submit();
+            }, 200);
+        } else {
+            restoreErrorMsg.style.display = 'block';
+            restoreConfirmInput.focus();
+        }
+    });
+
+    restoreConfirmInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            restoreConfirmBtn.click();
+        }
+    });
+
+    // Download modal elements
+    const downloadConfirmBtn = document.getElementById('downloadConfirmBtn');
+    const downloadBackupModalEl = document.getElementById('downloadBackupModal');
+
+    let downloadModal = null;
+    if (typeof bootstrap !== 'undefined') {
+        downloadModal = new bootstrap.Modal(downloadBackupModalEl);
+    }
+
+    downloadConfirmBtn.addEventListener('click', function() {
+        if (downloadModal) {
+            downloadModal.hide();
+        }
+        setTimeout(() => {
+            window.location.href = "/backup/now";
+        }, 200);
+    });
+});
+</script>
+{% endblock %}

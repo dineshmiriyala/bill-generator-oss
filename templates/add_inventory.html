@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="mb-4 text-center">Add Inventory Item</h2>
+
+  {% if duplicate %}
+    <div class="alert alert-danger alert-dismissible fade show text-center w-100 mx-auto pe-5 position-relative" role="alert" data-auto-dismiss-ms="6000" style="max-width: 500px; margin: 0 auto;">
+      An item with the same <strong>SKU</strong> already exists!
+      <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endif %}
+
+  {% if success %}
+    <div class="alert alert-success alert-dismissible fade show text-center w-100 mx-auto pe-5 position-relative" role="alert" data-auto-dismiss-ms="4000" style="max-width: 500px; margin: 0 auto;">
+      Item added successfully!
+      <button type="button" class="btn-close position-absolute top-0 end-0 mt-2 me-2" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  {% endif %}
+
+  <form method="POST" action="{{ next_url if next_url else '/add_inventory'}}" class="w-100" style="max-width: 500px; margin: 0 auto;">
+    <div class="form-floating mb-3">
+      <input type="text" class="form-control shadow-sm" id="name" name="name" placeholder="Description" required>
+      <label for="name">Description</label>
+    </div>
+
+    <div class="alert alert-light border small d-flex align-items-center gap-2 py-2 mb-3" role="status">
+      <i class="bi bi-info-circle text-primary"></i>
+      <span><strong>SKU</strong> is generated automatically when you save the item.</span>
+    </div>
+
+    <div class="form-floating mb-3">
+      <input type="number" class="form-control shadow-sm" id="unitPrice" name="unitPrice" placeholder="Unit Price" step="0.01" required>
+      <label for="unitPrice">Unit Price</label>
+    </div>
+
+    <div class="form-floating mb-1">
+      <input type="number" class="form-control shadow-sm" id="quantity" name="quantity" placeholder="Available Quantity">
+      <label for="quantity">Available Quantity</label>
+    </div>
+    <div class="form-text mb-3">Default value will be 10000.</div>
+
+
+    <div class="form-floating mb-1">
+      <input type="number" class="form-control shadow-sm" id="tax" name="taxPercentage" placeholder="Tax Percentage" step="0.1">
+      <label for="tax">Tax %</label>
+    </div>
+    <div class="form-text mb-3">Default value is 0.0.</div>
+
+
+
+    <button type="submit" class="btn btn-primary w-100">Add Item</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <h4 class="mb-3">Delete Customer</h4>
+
+  <div class="d-flex flex-column gap-3">
+    <div class="border border-warning rounded bg-warning bg-opacity-25 p-3 w-100">
+      <p class="mb-2">
+        <strong>Warning:</strong>
+        This customer has <strong>{{ inv_count }}</strong> invoice{{ 's' if inv_count != 1 else '' }}
+        totaling <strong>INR: {{ '%.2f'|format(total_billed) }}</strong>.
+      </p>
+      <p class="mb-0">
+        Deleting this customer will also delete all their invoices. This action cannot be undone.
+      </p>
+    </div>
+
+    <div class="d-flex gap-2">
+      <form method="post" action="{{ url_for('delete_customer', cid=customer.id) }}">
+        <input type="hidden" name="confirm" value="1">
+        <button class="btn btn-danger" type="submit">
+          Yes, delete customer &amp; invoices
+        </button>
+      </form>
+      <a class="btn btn-secondary" href="{{ url_for('view_customers') }}">Cancel</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

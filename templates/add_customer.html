@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+{% block content %}
+{% set back_href = url_for('select_customer') if bill_generation else url_for('home') %}
+{% set back_label = 'Back to customer picker' if bill_generation else 'Back to home' %}
+<div class="customer-create-shell">
+  <div class="customer-create-hero">
+    <div>
+      <p class="customer-create-eyebrow mb-1">Customer Setup</p>
+      <h2 class="fw-semibold mb-2">Add New Customer</h2>
+      <p class="text-muted mb-0">
+        Save the customer once, then reuse them anywhere in billing, drafts, dues, and accounting.
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ back_href }}" class="btn btn-outline-secondary rounded-pill px-4">{{ back_label }}</a>
+      <a href="{{ url_for('view_customers') }}" class="btn btn-primary rounded-pill px-4">View Customers</a>
+    </div>
+  </div>
+
+  {% if bill_generation %}
+  <div class="customer-create-banner">
+    <strong>Bill flow</strong>
+    <span class="text-muted">This customer will be ready to use for billing right after they are saved.</span>
+  </div>
+  {% endif %}
+
+  {% if error %}
+  <div class="alert alert-danger alert-dismissible fade show border-0 rounded-4 shadow-sm mt-3 mb-0 pe-5 position-relative" role="alert" data-auto-dismiss-ms="6000">
+    {{ error }}
+    <button type="button" class="btn-close position-absolute top-0 end-0 mt-3 me-3" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
+
+  {% if success %}
+  <div class="alert alert-success alert-dismissible fade show border-0 rounded-4 shadow-sm mt-3 mb-0 pe-5 position-relative" role="alert" data-auto-dismiss-ms="4000">
+    {{ success_message or 'Customer added successfully!' }}
+    <button type="button" class="btn-close position-absolute top-0 end-0 mt-3 me-3" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-xl-8">
+      <form method="POST" action="{{ url_for('add_customers') }}" class="customer-create-form">
+        <input type="hidden" name="next_url" value="{{ next_url or '' }}">
+        <input type="hidden" name="bill_generation" value="{{ '1' if bill_generation else '0' }}">
+
+        <section class="customer-panel">
+          <div class="customer-panel-head">
+            <div>
+              <h5 class="mb-1">Customer Details</h5>
+              <p class="text-muted small mb-0">Keep the basic identity clean so the same record works everywhere.</p>
+            </div>
+          </div>
+
+          <div class="customer-form-grid">
+            <div class="customer-field customer-field-wide">
+              <label for="company" class="customer-field-label">Company Name</label>
+              <input type="text" class="form-control modern-control" id="company" name="company" value="{{ company or '' }}" placeholder="Enter company name">
+              <div class="customer-field-help">This is the main name shown on the bill.</div>
+            </div>
+
+            <div class="customer-field customer-field-wide">
+              <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-2">
+                <label for="name" class="customer-field-label mb-0">Customer Name</label>
+                <label class="customer-toggle-pill mb-0" for="same_as_company">
+                  <input class="form-check-input mt-0" type="checkbox" id="same_as_company" name="same_as_company">
+                  <span>Same as company</span>
+                </label>
+              </div>
+              <input type="text" class="form-control modern-control" id="name" name="name" value="{{ name or '' }}" placeholder="Enter customer name" required>
+            </div>
+
+            <div class="customer-field customer-field-wide">
+              <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-2">
+                <label for="phone" class="customer-field-label mb-0">Phone or ID</label>
+                <label class="customer-toggle-pill mb-0" for="use_auto_id">
+                  <input class="form-check-input mt-0" type="checkbox" value="1" id="use_auto_id" name="use_auto_id" {% if use_auto_id %}checked{% endif %}>
+                  <span>Use computer-generated ID</span>
+                </label>
+              </div>
+              <input type="tel" class="form-control modern-control" id="phone" name="phone" value="{{ phone or '' }}" placeholder="Enter phone number" {% if not use_auto_id %}required{% endif %}>
+              <div class="customer-field-help" id="phoneHelp">
+                Use a real phone number, or let the app create an ID automatically.
+              </div>
+            </div>
+
+            <div class="customer-field">
+              <label for="email" class="customer-field-label">Email Address</label>
+              <input type="email" class="form-control modern-control" id="email" name="email" value="{{ email or '' }}" placeholder="Optional email">
+            </div>
+
+            <div class="customer-field">
+              <label for="gst" class="customer-field-label">GST Number</label>
+              <input type="text" class="form-control modern-control" id="gst" name="gst" value="{{ gst or '' }}" placeholder="Optional GST">
+            </div>
+
+            <div class="customer-field">
+              <label for="businessType" class="customer-field-label">Business Type</label>
+              <input type="text" class="form-control modern-control" id="businessType" name="businessType" value="{{ businessType or '' }}" placeholder="Optional business type">
+            </div>
+
+            <div class="customer-field customer-field-wide">
+              <label for="address" class="customer-field-label">Address</label>
+              <textarea class="form-control modern-control modern-textarea" id="address" name="address" placeholder="Optional address">{{ address or '' }}</textarea>
+            </div>
+          </div>
+        </section>
+
+        <div class="customer-create-actions">
+          <button type="submit" class="btn btn-primary btn-lg px-4">Add Customer</button>
+          <a href="{{ back_href }}" class="btn btn-outline-secondary btn-lg px-4">Cancel</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="customer-side-stack">
+        <section class="customer-panel customer-side-panel">
+          <p class="customer-create-eyebrow mb-1">Preview</p>
+          <h5 class="mb-3">What This Record Uses</h5>
+
+          <div class="customer-preview-grid">
+            <div class="customer-preview-card">
+              <span class="customer-preview-label">Bill name</span>
+              <strong id="previewCompany">{{ company or 'Company name' }}</strong>
+            </div>
+            <div class="customer-preview-card">
+              <span class="customer-preview-label">Customer name</span>
+              <strong id="previewName">{{ name or 'Customer name' }}</strong>
+            </div>
+            <div class="customer-preview-card">
+              <span class="customer-preview-label">Phone / ID</span>
+              <strong id="previewPhone">{{ phone or 'Will show here' }}</strong>
+            </div>
+            <div class="customer-preview-card">
+              <span class="customer-preview-label">Billing note</span>
+              <strong id="previewMode">{{ 'Computer-generated ID' if use_auto_id else 'Phone based customer' }}</strong>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .customer-create-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0.75rem 0 2rem;
+  }
+
+  .customer-create-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding: 1.6rem;
+    border-radius: 24px;
+    border: 1px solid #e6e9ef;
+    background: linear-gradient(135deg, #f8fbff, #f2f6ff);
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
+  }
+
+  .customer-create-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    border: 1px solid #dbe8ff;
+    background: #f8fbff;
+    border-radius: 18px;
+    padding: 0.9rem 1rem;
+  }
+
+  .customer-create-eyebrow {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6c7683;
+    font-size: 0.78rem;
+  }
+
+  .customer-panel {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid #e6e9ef;
+    border-radius: 22px;
+    padding: 1.35rem 1.4rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .customer-panel-head {
+    margin-bottom: 1rem;
+  }
+
+  .customer-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.1rem;
+  }
+
+  .customer-field {
+    min-width: 0;
+  }
+
+  .customer-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .customer-field-label {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6c7683;
+    margin-bottom: 0.5rem;
+  }
+
+  .customer-field-help {
+    color: #6c757d;
+    font-size: 0.82rem;
+    margin-top: 0.45rem;
+  }
+
+  .modern-control {
+    min-height: 48px;
+    border-radius: 16px;
+    border: 1px solid #dfe5ef;
+    background: #fbfcff;
+    box-shadow: none;
+    padding: 0.8rem 0.95rem;
+  }
+
+  .modern-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.12);
+    background: #fff;
+  }
+
+  .modern-textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  .customer-toggle-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.6rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid #e2e8f2;
+    background: #fbfcff;
+    font-size: 0.9rem;
+    color: #364152;
+  }
+
+  .customer-toggle-pill .form-check-input {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .customer-create-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .customer-side-stack {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .customer-preview-grid {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .customer-preview-card {
+    border: 1px solid #e8edf5;
+    background: #fbfcff;
+    border-radius: 16px;
+    padding: 0.9rem 1rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+
+  .customer-preview-label {
+    color: #6c7683;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 991.98px) {
+    .customer-create-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .customer-panel {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+
+    .customer-form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .customer-field-wide {
+      grid-column: auto;
+    }
+
+    .customer-create-actions .btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+  (function() {
+    const autoIdToggle = document.getElementById('use_auto_id');
+    const phoneField = document.getElementById('phone');
+    const phoneHelp = document.getElementById('phoneHelp');
+    const sameAsCompany = document.getElementById('same_as_company');
+    const nameField = document.getElementById('name');
+    const companyField = document.getElementById('company');
+    const previewCompany = document.getElementById('previewCompany');
+    const previewName = document.getElementById('previewName');
+    const previewPhone = document.getElementById('previewPhone');
+    const previewMode = document.getElementById('previewMode');
+
+    function updatePreview() {
+      if (previewCompany) {
+        previewCompany.textContent = companyField?.value?.trim() || 'Company name';
+      }
+      if (previewName) {
+        previewName.textContent = nameField?.value?.trim() || 'Customer name';
+      }
+      if (previewPhone) {
+        previewPhone.textContent = autoIdToggle?.checked
+          ? 'Will be auto-generated'
+          : (phoneField?.value?.trim() || 'Will show here');
+      }
+      if (previewMode) {
+        previewMode.textContent = autoIdToggle?.checked
+          ? 'Computer-generated ID'
+          : 'Phone based customer';
+      }
+    }
+
+    function syncPhoneMode() {
+      if (!autoIdToggle || !phoneField) return;
+      if (autoIdToggle.checked) {
+        if (!phoneField.dataset.prev) {
+          phoneField.dataset.prev = phoneField.value || '';
+        }
+        phoneField.value = '';
+        phoneField.required = false;
+        phoneField.placeholder = 'Will be auto-generated';
+        phoneField.disabled = true;
+        phoneField.classList.add('bg-light');
+        if (phoneHelp) {
+          phoneHelp.textContent = 'A new customer ID will be created automatically after save.';
+        }
+      } else {
+        phoneField.disabled = false;
+        phoneField.classList.remove('bg-light');
+        phoneField.required = true;
+        phoneField.placeholder = 'Enter phone number';
+        if (phoneField.dataset.prev !== undefined) {
+          phoneField.value = phoneField.dataset.prev;
+          delete phoneField.dataset.prev;
+        }
+        if (phoneHelp) {
+          phoneHelp.textContent = 'Use a real phone number, or let the app create an ID automatically.';
+        }
+      }
+      updatePreview();
+    }
+
+    function syncNameWithCompany() {
+      if (!sameAsCompany || !nameField || !companyField) return;
+      if (sameAsCompany.checked) {
+        if (nameField.dataset.prev === undefined) {
+          nameField.dataset.prev = nameField.value || '';
+        }
+        nameField.value = companyField.value;
+        nameField.readOnly = true;
+        nameField.classList.add('bg-light');
+      } else {
+        nameField.readOnly = false;
+        nameField.classList.remove('bg-light');
+        if (nameField.dataset.prev !== undefined) {
+          nameField.value = nameField.dataset.prev;
+          delete nameField.dataset.prev;
+        }
+      }
+      updatePreview();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      syncPhoneMode();
+      syncNameWithCompany();
+      updatePreview();
+
+      if (autoIdToggle) autoIdToggle.addEventListener('change', syncPhoneMode);
+      if (sameAsCompany) sameAsCompany.addEventListener('change', syncNameWithCompany);
+      if (companyField) {
+        companyField.addEventListener('input', function() {
+          if (sameAsCompany?.checked && nameField) {
+            nameField.value = companyField.value;
+          }
+          updatePreview();
+        });
+      }
+      if (nameField) nameField.addEventListener('input', updatePreview);
+      if (phoneField) phoneField.addEventListener('input', updatePreview);
+    });
+  })();
+</script>
+{% endblock %}

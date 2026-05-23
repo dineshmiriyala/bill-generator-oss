@@ -1,0 +1,317 @@
+{% extends 'base.html' %}
+{% set hide_navbar = True %}
+{% set accent = APP_INFO.appearance.theme_color if APP_INFO.appearance and APP_INFO.appearance.theme_color else '#0f172a' %}
+{% set logo_color_mode = APP_INFO.business.logo_color_mode if APP_INFO.business and APP_INFO.business.logo_color_mode else 'black' %}
+{% set base_logo_height = 52 %}
+{% set logo_print_height = base_logo_height * (0.8 if logo_color_mode == 'blue' else 1) %}
+{% block title %}{{ pdf_title | default('Statement') }}{% endblock %}
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  .brand-logo {
+    height: {{ base_logo_height }}px;
+    width: auto;
+    max-width: 280px;
+    object-fit: contain;
+  }
+  .from-to-block h6 {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+  }
+  .from-to-block p {
+    font-size: 1rem !important;
+  }
+  .from-to-block p strong {
+    font-size: 1.12rem !important;
+  }
+  @media print {
+    .brand-logo {
+      height: {{ logo_print_height | round(1) }}px !important;
+      width: auto !important;
+      max-width: none !important;
+    }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container py-5" style="max-width: 960px;">
+  <div class="statement-frame rounded-4 bg-white shadow-sm p-4 p-md-5" style="--accent: {{ accent }};">
+
+    <div class="masthead text-center mb-3">
+      <img class="brand-logo"
+           src="{{ APP_INFO.business.logo_path }}"
+           alt="{{ APP_INFO.business.name }}"
+           onerror="this.style.display='none'; this.insertAdjacentHTML('afterend', '<div class=&quot;fw-bold text-dark fs-5 text-center&quot;>{{ APP_INFO.business.name }}</div>');">
+      <div class="bill-heading text-uppercase fw-bold mt-2" style="letter-spacing: .08em;">Company Statement</div>
+    </div>
+
+    {% if customer_phone or phone %}
+    <div class="d-flex justify-content-end mb-2 d-print-none">
+      <div class="phone-toggle">
+        <span>Phone</span>
+        <div class="form-check form-switch m-0">
+          <input class="form-check-input" type="checkbox" id="toggleStatementPhone" checked>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="divider my-3"></div>
+
+    <div class="row mb-4 from-to-block">
+      <div class="col-sm-6">
+        <h6 class="text-uppercase text-muted small mb-1">From</h6>
+        <p class="fs-5 mb-1">
+          <strong class="fs-4">{{ APP_INFO.business.name }}</strong><br>
+          {{ APP_INFO.business.address }}<br>
+          GST: {{ APP_INFO.business.gstin }}<br>
+          Cell: {{ APP_INFO.business.phone }}<br>
+          email: {{ APP_INFO.business.email }}<br>
+        </p>
+      </div>
+      <div class="col-sm-6 text-sm-end">
+        {% if date_wise %}
+          <h6 class="text-uppercase text-muted small mb-1">Statement For</h6>
+          <p class="fs-5 mb-0">
+            <strong class="fs-4">Date-wise Statement</strong><br>
+            {% if phone %}<span class="contact-line text-muted phone-line">Phone: {{ phone }}</span>{% endif %}
+          </p>
+        {% else %}
+          <h6 class="text-uppercase text-muted small mb-1">To</h6>
+          <p class="text-dark fs-5 mb-0">
+            <strong class="fs-4">{{ customer_company or '(No Company)' }}</strong><br>
+            {% if customer_phone %}<span class="contact-line text-muted phone-line">Phone: {{ customer_phone }}</span>{% endif %}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="row mb-3 invoice-info-block">
+      <div class="col-sm-6">
+        <p class="text-dark mb-0"><strong>Period:</strong> {{ start_date | datetimeformat }} — {{ end_date | datetimeformat }}</p>
+      </div>
+      <div class="col-sm-6 text-sm-end">
+        <p class="text-dark mb-1"><strong>Total Invoices:</strong> {{ total_invoices }}</p>
+        <p class="text-dark mb-0"><strong>Date:</strong> {{ generated_on.strftime('%d %B %Y') if generated_on else '' }}</p>
+      </div>
+    </div>
+
+    <div class="summary-grid mb-4">
+      <div class="summary-card total">
+        <div class="label text-uppercase">Total (INR):</div>
+        <div class="value display-6">{{ total_amount|inr }}</div>
+      </div>
+    </div>
+
+    <div class="table-responsive rounded-3 border shadow-sm mb-4 statement-table">
+      <table class="table table-hover table-striped align-middle mb-0">
+        <thead class="table-light">
+          <tr class="text-center">
+            <th>Invoice No</th>
+            <th>Date</th>
+            {% if date_wise %}
+            <th>Company</th>
+            <th>Phone</th>
+            {% endif %}
+            <th class="text-end">Total (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in inv_rows %}
+          <tr>
+            <td class="fw-semibold text-dark">{{ r.invoice_no }}</td>
+            <td>{{ r.date | datetimeformat }}</td>
+            {% if date_wise %}
+            <td>{{ r.company or r.customer_company or '(No Company)' }}</td>
+            <td>{{ r.phone or r.customer_phone or '(No Phone)' }}</td>
+            {% endif %}
+            <td class="text-end fw-semibold">{{ r.total|inr }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            {% if date_wise %}
+            <td colspan="4" class="text-end fw-semibold">Total</td>
+            {% else %}
+            <td colspan="2" class="text-end fw-semibold">Total</td>
+            {% endif %}
+            <td class="text-end fw-bold">{{ total_amount|inr }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <div class="payment-panel rounded-3 border p-4 mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <h5 class="fw-semibold mb-0">Payment Information</h5>
+        <div class="badge rounded-pill text-bg-light border" style="letter-spacing:.08em;">Secure Transfer</div>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <p class="mb-1"><strong>Account Name:</strong> {{ APP_INFO.bank.account_name }}</p>
+          <p class="mb-1"><strong>Bank:</strong> {{ APP_INFO.bank.bank_name }}, {{ APP_INFO.bank.branch }}</p>
+          <p class="mb-1"><strong>Account No:</strong> {{ APP_INFO.bank.account_number }}</p>
+          <p class="mb-1"><strong>IFSC:</strong> {{ APP_INFO.bank.ifsc }}</p>
+        </div>
+        <div class="col-md-6">
+          {% set upi_id = APP_INFO.upi_info.upi_id if APP_INFO.upi_info and APP_INFO.upi_info.upi_id else APP_INFO.business.upi_id %}
+          <p class="mb-1"><strong>UPI ID:</strong> {{ upi_id or '—' }}</p>
+          <p class="mb-1"><strong>PhonePe / GPay:</strong> {{ APP_INFO.business.phone }}</p>
+          <p class="mt-3 small text-muted fst-italic">{{ APP_INFO.statement.disclaimer }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4 d-print-none">
+      <button onclick="window.print()" class="btn btn-dark rounded-pill px-4 py-2 shadow-sm">
+        Print Statement
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.onload = function() {
+    const pdfTitle = {{ pdf_title|tojson if pdf_title is defined else '"Statement"' }};
+    document.title = pdfTitle;
+    window.print();
+  };
+</script>
+<script>
+  (function(){
+    const toggle = document.getElementById('toggleStatementPhone');
+    const phoneLines = document.querySelectorAll('.phone-line');
+    if (!toggle || !phoneLines.length) return;
+    const sync = () => phoneLines.forEach(el => el.classList.toggle('d-none', !toggle.checked));
+    sync();
+    toggle.addEventListener('change', sync);
+  })();
+</script>
+{% endblock %}
+<style>
+  body {
+    background: #f5f7fb;
+  }
+  .statement-frame {
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+  }
+  .brand-mark {
+    width: 96px;
+    height: 96px;
+  }
+  .bill-heading {
+    font-size: 1.15rem;
+    letter-spacing: .04em;
+  }
+  .statement-header {
+    border-left: 4px solid var(--accent);
+    padding-left: 12px;
+  }
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #d1d5db, transparent);
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .summary-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 14px 16px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  }
+  .summary-card .label {
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-size: 0.78rem;
+    color: #6b7280;
+    margin-bottom: 4px;
+  }
+  .summary-card .value {
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .summary-card .muted {
+    color: #6b7280;
+    font-size: 0.9rem;
+    margin-top: 4px;
+  }
+  .summary-card.total {
+    background: linear-gradient(135deg, var(--accent), #0f172a);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  }
+  .summary-card.total .value,
+  .summary-card.total .value * {
+    color: #fbbf24 !important;
+  }
+  .summary-card.total .label {
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    letter-spacing: .08em;
+  }
+  .statement-table .table > :not(caption) > * > * {
+    padding: 0.72rem;
+  }
+  .statement-table table {
+    margin-bottom: 0;
+  }
+  .statement-table .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background: #f8fafc;
+  }
+  .statement-table .table-hover > tbody > tr:hover > * {
+    background: #eef2ff;
+  }
+  .payment-panel {
+    background: #f8fafc;
+  }
+  .contact-line { display: block; }
+  .phone-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: #5a6570;
+    background: rgba(248,249,250,0.95);
+    border: 1px solid rgba(90,101,112,0.2);
+    border-radius: 999px;
+    padding: 0.3rem 0.8rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  @media print {
+    body {
+      background: #ffffff;
+    }
+    .statement-frame,
+    .summary-card,
+    .payment-panel,
+    .table-responsive {
+      box-shadow: none !important;
+    }
+    .statement-frame {
+      border-color: #d1d5db;
+    }
+    .table-responsive {
+      border: 1px solid #000 !important;
+    }
+    .summary-card.total .value,
+    .summary-card.total .value * {
+      color: #fbbf24 !important;
+    }
+    .statement-table table th,
+    .statement-table table td {
+      border: 1px solid #000 !important;
+      color: #000 !important;
+    }
+  }
+</style>

@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="customer-profile-shell">
+  <div class="customer-profile-hero">
+    <div>
+      <p class="customer-profile-eyebrow mb-1">Customer Profile</p>
+      <h2 class="fw-semibold mb-2">{{ data.company or data.name }}</h2>
+      <p class="text-muted mb-0">
+        {% if data.company and data.name and data.company != data.name %}
+          {{ data.name }}
+        {% else %}
+          Saved customer details used across billing, drafts, dues, and accounting.
+        {% endif %}
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ back_href }}" class="btn btn-outline-secondary rounded-pill px-4">Back</a>
+      <a href="{{ edit_href }}" class="btn btn-primary rounded-pill px-4">Edit Customer</a>
+      <a href="{{ create_bill_href }}" class="btn btn-success rounded-pill px-4">Create Bill</a>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-xl-8">
+      <section class="customer-profile-card">
+        <div class="customer-profile-card-head">
+          <div>
+            <h5 class="mb-1">Saved Details</h5>
+            <p class="text-muted small mb-0">These values power invoice headers, statements, and accounting links.</p>
+          </div>
+        </div>
+
+        <div class="customer-profile-grid">
+          <div class="customer-profile-field">
+            <span class="customer-profile-label">Company Name</span>
+            <strong>{{ data.company or '—' }}</strong>
+          </div>
+          <div class="customer-profile-field">
+            <span class="customer-profile-label">Customer Name</span>
+            <strong>{{ data.name or '—' }}</strong>
+          </div>
+          <div class="customer-profile-field">
+            <span class="customer-profile-label">Phone / ID</span>
+            <strong>{{ data.phone or '—' }}</strong>
+          </div>
+          <div class="customer-profile-field">
+            <span class="customer-profile-label">Email</span>
+            <strong>{{ data.email or '—' }}</strong>
+          </div>
+          <div class="customer-profile-field">
+            <span class="customer-profile-label">GST</span>
+            <strong>{{ data.gst or '—' }}</strong>
+          </div>
+          <div class="customer-profile-field">
+            <span class="customer-profile-label">Business Type</span>
+            <strong>{{ data.businessType or '—' }}</strong>
+          </div>
+          <div class="customer-profile-field customer-profile-field-wide">
+            <span class="customer-profile-label">Address</span>
+            <strong>{{ data.address or '—' }}</strong>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="customer-profile-side-stack">
+        <section class="customer-profile-card customer-profile-side-card">
+          <p class="customer-profile-eyebrow mb-1">Quick Actions</p>
+          <h5 class="mb-3">Use This Customer</h5>
+          <div class="customer-profile-action-grid">
+            <a href="{{ create_bill_href }}" class="customer-profile-link-card">
+              <span class="customer-profile-link-label">Billing</span>
+              <strong>Create a new bill</strong>
+            </a>
+            <a href="{{ accounting_href }}" class="customer-profile-link-card">
+              <span class="customer-profile-link-label">Accounting</span>
+              <strong>Open customer accounting</strong>
+            </a>
+            <a href="{{ edit_href }}" class="customer-profile-link-card">
+              <span class="customer-profile-link-label">Maintenance</span>
+              <strong>Edit customer details</strong>
+            </a>
+          </div>
+        </section>
+
+        <section class="customer-profile-card customer-profile-side-card">
+          <p class="customer-profile-eyebrow mb-1">Managed By</p>
+          <h5 class="mb-2">{{ app_info['business']['name'] or 'Your business' }}</h5>
+          <p class="text-muted small mb-0">
+            This customer record stays shared across bills, drafts, dues, and accounting pages.
+          </p>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .customer-profile-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0.75rem 0 2rem;
+  }
+
+  .customer-profile-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding: 1.6rem;
+    border-radius: 24px;
+    border: 1px solid #e6e9ef;
+    background: linear-gradient(135deg, #f8fbff, #f2f6ff);
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
+  }
+
+  .customer-profile-eyebrow {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6c7683;
+    font-size: 0.78rem;
+  }
+
+  .customer-profile-card {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid #e6e9ef;
+    border-radius: 22px;
+    padding: 1.35rem 1.4rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .customer-profile-card-head {
+    margin-bottom: 1rem;
+  }
+
+  .customer-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.05rem;
+  }
+
+  .customer-profile-field {
+    border: 1px solid #edf1f6;
+    border-radius: 16px;
+    background: #fafcff;
+    padding: 0.95rem 1rem;
+    min-width: 0;
+  }
+
+  .customer-profile-field strong {
+    display: block;
+    color: #1f2a37;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .customer-profile-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .customer-profile-label {
+    display: block;
+    color: #6c7683;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .customer-profile-side-stack {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .customer-profile-action-grid {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .customer-profile-link-card {
+    text-decoration: none;
+    border: 1px solid #e7edf7;
+    border-radius: 16px;
+    background: #f8fbff;
+    padding: 0.95rem 1rem;
+    display: grid;
+    gap: 0.3rem;
+    color: #1f2a37;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .customer-profile-link-card:hover {
+    border-color: #bfd4ff;
+    box-shadow: 0 10px 24px rgba(13, 110, 253, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .customer-profile-link-label {
+    color: #6c7683;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 991.98px) {
+    .customer-profile-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .customer-profile-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,1547 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="create-bill-shell">
+  <form id="createBillForm" method="POST" action="{% if edit_mode %}{{ url_for('update_bill', invoicenumber=invoice_no) }}{% else %}{{ url_for('start_bill') }}{% endif %}">
+    <input type="hidden" name="form_token" value="{{ form_token }}">
+    {% if edit_mode %}<input type="hidden" name="invoice_no" value="{{ invoice_no }}">{% endif %}
+    {% if draft_mode %}<input type="hidden" name="draft_id" value="{{ draft_id }}">{% endif %}
+    <input type="hidden" name="customer_phone" value="{{ customer.phone if customer else '' }}">
+    <input type="hidden" name="next" value="{% if customer %}{{ url_for('bill_drafts', customer_id=customer.id) }}{% else %}{{ url_for('bill_drafts') }}{% endif %}">
+
+    <div class="create-bill-layout">
+      <aside class="bill-panel bill-history-sidebar">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+          <div>
+            <p class="create-bill-eyebrow mb-1">History</p>
+            <h5 class="mb-1">Previous Bills</h5>
+            <p class="text-muted small mb-0">
+              {% if customer %}
+                Latest first. Click a bill to see its items.
+              {% else %}
+                Select a customer to see their bill history here.
+              {% endif %}
+            </p>
+          </div>
+          {% if customer_bill_history %}
+          <span class="history-count">{{ customer_bill_history|length }}</span>
+          {% endif %}
+        </div>
+
+        {% if customer %}
+          {% if customer_bill_history %}
+          <div class="history-scroll">
+            {% for history in customer_bill_history %}
+            <div class="history-entry" data-history-invoice="{{ history.invoice_no }}">
+              <button
+                type="button"
+                class="history-summary"
+                data-history-toggle="{{ history.invoice_no }}"
+                data-history-details="history-details-{{ history.invoice_no }}"
+                aria-controls="history-details-{{ history.invoice_no }}"
+                aria-expanded="false"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-3 w-100">
+                  <div class="text-start">
+                    <div class="history-invoice">{{ history.invoice_no }}</div>
+                    <div class="history-date">{{ history.created_at | datetimeformat('%d %b %Y') }}</div>
+                  </div>
+                  {% if history.is_paid %}
+                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Paid</span>
+                  {% else %}
+                  <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2">Pending</span>
+                  {% endif %}
+                </div>
+                <div class="history-meta">
+                  <span class="history-amount">INR {{ '%.2f' | format(history.total_amount) }}</span>
+                  <span>{{ history.item_count }} item{{ '' if history.item_count == 1 else 's' }}</span>
+                </div>
+              </button>
+
+              <div class="history-details d-none" id="history-details-{{ history.invoice_no }}">
+                <div class="history-details-shell">
+                  <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                    <div class="small text-muted">Bill items</div>
+                    <a href="{{ url_for('view_bill_locked', invoicenumber=history.invoice_no) }}" class="history-open-link">Open bill</a>
+                  </div>
+                  <div class="history-items-list" data-history-items-body>
+                    <div class="history-items-state text-center text-muted py-3">Click this bill to load items.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="history-empty">
+            <strong>No previous bills yet.</strong>
+            <div class="small mt-2">Once this customer has more bills, they will show up here.</div>
+          </div>
+          {% endif %}
+        {% else %}
+        <div class="history-empty">
+          <strong>No customer selected.</strong>
+          <div class="small mt-2">Pick a customer first, then this panel will show their previous bills.</div>
+        </div>
+        {% endif %}
+      </aside>
+
+      <div class="create-bill-canvas">
+        <div class="create-bill-header">
+          <div>
+            <p class="create-bill-eyebrow mb-1">{% if edit_mode %}Revise invoice{% elif draft_mode %}Continue draft{% else %}Build invoice{% endif %}</p>
+            <h2 class="mb-1 fw-semibold">{% if edit_mode %}Edit Bill{% elif draft_mode %}Draft Bill{% else %}Create Bill{% endif %}</h2>
+            <p class="text-muted mb-0">
+              {% if draft_mode %}
+                Reopen the draft, adjust the items, and generate the final bill when ready.
+              {% else %}
+                Review the customer details, add items, and generate the bill.
+              {% endif %}
+            </p>
+          </div>
+          {% if edit_mode %}
+          <div class="create-bill-header-actions">
+            <a href="{{ url_for('bill_preview', invoicenumber=invoice_no) }}" target="_blank" class="btn btn-outline-primary">Preview</a>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if edit_mode %}
+        <div id="editModeBanner" class="bill-panel create-bill-banner mb-4">
+          <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div>
+              <strong>Editing Bill</strong>
+              <span class="ms-3 text-muted">Created at: {{ prev_created_at }}</span>
+            </div>
+            <span class="badge rounded-pill text-bg-info px-3 py-2">Edit mode</span>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if draft_mode %}
+        <div class="bill-panel create-bill-banner mb-4">
+          <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div>
+              <strong>Draft</strong>
+              {% if draft_updated_at %}
+              <span class="ms-3 text-muted">Last updated: {{ draft_updated_at | datetimeformat('%d %b %Y, %I:%M %p') }}</span>
+              {% endif %}
+            </div>
+            <span class="badge rounded-pill text-bg-warning px-3 py-2">Draft mode</span>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if success %}
+        <div class="alert alert-success alert-dismissible fade show position-relative mb-4 pe-5 d-flex justify-content-between align-items-center flex-wrap gap-2" role="alert" data-auto-dismiss-ms="4000">
+          <div>
+            <strong>Bill {{ 'updated' if edit_mode else 'generated' }} successfully</strong>
+          </div>
+          <a href="{{ url_for('bill_preview', invoicenumber=invoice_no) if edit_mode else url_for('latest_bill_preview') }}" target="_blank" class="btn btn-outline-primary btn-sm">Preview Bill</a>
+          <button type="button" class="btn-close position-absolute top-0 end-0 mt-3 me-3" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <div class="row g-4 create-bill-board">
+          <div class="col-12 col-lg-8">
+            <section class="bill-panel bill-card">
+              <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                <div>
+                  <h5 class="mb-1">Customer Details</h5>
+                </div>
+                {% if customer %}
+                <span class="badge rounded-pill text-bg-light customer-chip">{{ customer.company or customer.name }}</span>
+                {% endif %}
+              </div>
+
+              <div class="customer-summary-grid">
+                <div class="summary-field">
+                  <span class="summary-label">Customer Name</span>
+                  <div class="summary-value">{{ customer.name if customer else 'No customer selected' }}</div>
+                </div>
+                <div class="summary-field">
+                  <span class="summary-label">Company</span>
+                  <div class="summary-value">{{ customer.company if customer else '—' }}</div>
+                </div>
+                <div class="summary-field">
+                  <span class="summary-label">ID/Phone</span>
+                  <div class="summary-value" id="phoneValue">{{ customer.phone if customer else '—' }}</div>
+                </div>
+                <div class="summary-field">
+                  <span class="summary-label">GST</span>
+                  <div class="summary-value" id="gstValue">{{ customer.gst if customer else '—' }}</div>
+                </div>
+                <div class="summary-field summary-field-wide">
+                  <span class="summary-label">Address</span>
+                  <div class="summary-value" id="addressValue">{{ customer.address if customer else '—' }}</div>
+                </div>
+              </div>
+
+              <div class="customer-toggle-row">
+                <label class="form-check customer-toggle">
+                  <input class="form-check-input" type="checkbox" id="excludePhone" name="exclude_phone" {% if exclude_phone %}checked{% endif %}>
+                  <span class="form-check-label">Exclude ID</span>
+                </label>
+                <label class="form-check customer-toggle">
+                  <input class="form-check-input" type="checkbox" id="excludeGST" name="exclude_gst" {% if exclude_gst %}checked{% endif %}>
+                  <span class="form-check-label">Exclude GST</span>
+                </label>
+                <label class="form-check customer-toggle">
+                  <input class="form-check-input" type="checkbox" id="excludeAddress" name="exclude_addr" {% if exclude_addr %}checked{% endif %}>
+                  <span class="form-check-label">Exclude Address</span>
+                </label>
+              </div>
+            </section>
+          </div>
+
+          <div class="col-12 col-lg-4">
+            <section class="bill-panel bill-card invoice-meta-panel">
+              <h5 class="mb-3">Invoice Details</h5>
+              <div class="meta-stack">
+                <div class="meta-row">
+                  <span class="meta-label">Mode</span>
+                  <strong class="meta-value">{% if edit_mode %}Edit existing bill{% elif draft_mode %}Continue draft{% else %}Create new bill{% endif %}</strong>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Previous Bills</span>
+                  <strong class="meta-value">{{ customer_bill_history|length }}</strong>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Last Bill Date</span>
+                  <strong class="meta-value">
+                    {% if customer_bill_history %}
+                      {{ customer_bill_history[0].created_at | datetimeformat('%d %b %Y') }}
+                    {% else %}
+                      No bills yet
+                    {% endif %}
+                  </strong>
+                </div>
+              </div>
+
+              <div class="form-check form-switch bill-dc-toggle">
+                <input class="form-check-input" type="checkbox" id="toggleDC" {% if dcno %}checked{% endif %}>
+                <input type="hidden" name="dc_enabled" id="dcEnabledInput" value="{{ '1' if dcno else '0' }}">
+                <label class="form-check-label" for="toggleDC">Include Delivery Challan No per item</label>
+              </div>
+
+              <div class="meta-action-stack">
+                {% if edit_mode %}
+                <a href="{{ url_for('select_customer') }}" class="btn btn-outline-secondary w-100">Start Fresh</a>
+                {% else %}
+                <a href="{{ url_for('select_customer') }}" class="btn btn-outline-secondary w-100">Pick Another Customer</a>
+                {% endif %}
+                {% if edit_mode %}
+                <a href="{{ url_for('bill_preview', invoicenumber=invoice_no) }}" target="_blank" class="btn btn-outline-primary w-100">Open Current PDF</a>
+                {% endif %}
+              </div>
+            </section>
+          </div>
+
+          <div class="col-12">
+            <section class="bill-panel bill-card items-panel">
+              <div class="items-toolbar">
+                <div>
+                  <h5 class="mb-1">Invoice Items</h5>
+                  <p class="text-muted small mb-0">Build the line items for the new bill here.</p>
+                </div>
+                <div class="items-toolbar-actions">
+                  <button type="button" id="addItem" class="btn btn-secondary">Add Item</button>
+                  <button type="button" id="roundAll" class="btn btn-info">Round All</button>
+                </div>
+              </div>
+
+              <div id="items" class="{% if dcno %}items-dc-enabled{% endif %}">
+                {% set sno_cls = 'col-md-1' %}
+                {% if dcno %}
+                  {% set desc_cls = 'col-md-3' %}
+                  {% set dc_cls = 'col-md-2 dc-col' %}
+                {% else %}
+                  {% set desc_cls = 'col-md-5' %}
+                  {% set dc_cls = 'col-md-2 dc-col d-none' %}
+                {% endif %}
+                {% set qty_cls = 'col-md-1 qty-col' %}
+                {% set rate_cls = 'col-md-2 rate-col' %}
+                {% set total_cls = 'col-md-1 total-col' %}
+                {% set actions_cls = 'col-md-2 actions-col' %}
+
+                <div id="items-header" class="row g-2 align-items-center mb-2 fw-semibold small text-muted">
+                  <div class="{{ sno_cls }} d-flex justify-content-center align-items-center sno-col">S.No</div>
+                  <div class="{{ desc_cls }} d-flex align-items-center desc-col">Description</div>
+                  <div class="{{ dc_cls }} d-flex justify-content-center align-items-center">DC No</div>
+                  <div class="{{ qty_cls }} d-flex justify-content-center align-items-center">Qty</div>
+                  <div class="{{ rate_cls }} d-flex justify-content-center align-items-center">Unit Price</div>
+                  <div class="{{ total_cls }} d-flex justify-content-center align-items-center">Total</div>
+                  <div class="{{ actions_cls }} d-flex justify-content-center align-items-center">Actions</div>
+                </div>
+
+                {% if show_prefilled_rows %}
+                  {% for description, quantity, rate, line_total in zip(descriptions, quantities, rates, line_totals) %}
+                  <div class="row g-2 align-items-center mb-2 item-row" data-last-edited="">
+                    <div class="{{ sno_cls }} serial-col sno-col"><span class="serial-index">{{ loop.index }}</span></div>
+                    <div class="{{ desc_cls }} desc-col">
+                      <input type="text" name="description[]" class="form-control item-description" list="inventoryList" value="{{ description }}" placeholder="Item description" required>
+                    </div>
+                    <div class="{{ dc_cls }}">
+                      <input type="text" name="dc_no[]" class="form-control dc-input" value="{{ dc_numbers[loop.index0] if dc_numbers is defined and dc_numbers|length > loop.index0 else '' }}" {% if not dcno %}disabled{% endif %}>
+                    </div>
+                    <div class="{{ qty_cls }}"><input type="number" name="quantity[]" class="form-control qty-input" step="1" value="{{ quantity }}" placeholder="Qty" required></div>
+                    <div class="{{ rate_cls }}"><input type="number" name="rate[]" class="form-control rate-input" step="0.01" value="{{ rate }}" placeholder="Unit price" required></div>
+                    <div class="{{ total_cls }}"><input type="number" name="total[]" class="form-control total-input" step="0.01" value="{{ line_total }}" placeholder="Total" required></div>
+                    <div class="{{ actions_cls }} d-flex">
+                      <button type="button" class="btn btn-info btn-sm round-zero">Round</button>
+                      <button type="button" class="btn btn-danger btn-sm remove-item" aria-label="Remove item" title="Remove item">-</button>
+                    </div>
+                    <input type="hidden" name="rounded[]" value="{{ rounded_flags[loop.index0] if rounded_flags is defined and rounded_flags|length > loop.index0 else '0' }}">
+                  </div>
+                  {% endfor %}
+                {% else %}
+                  <div class="row g-2 align-items-center mb-2 item-row" data-last-edited="">
+                    <div class="{{ sno_cls }} serial-col sno-col"><span class="serial-index">1</span></div>
+                    <div class="{{ desc_cls }} desc-col">
+                      <input type="text" name="description[]" class="form-control item-description" list="inventoryList" required placeholder="Item description">
+                    </div>
+                    <div class="{{ dc_cls }}">
+                      <input type="text" name="dc_no[]" class="form-control dc-input" disabled>
+                    </div>
+                    <div class="{{ qty_cls }}"><input type="number" name="quantity[]" class="form-control qty-input" step="1" placeholder="Qty" required></div>
+                    <div class="{{ rate_cls }}"><input type="number" name="rate[]" class="form-control rate-input" step="0.01" placeholder="Unit price" required></div>
+                    <div class="{{ total_cls }}"><input type="number" name="total[]" class="form-control total-input" step="0.01" placeholder="Total" required></div>
+                    <div class="{{ actions_cls }} d-flex">
+                      <button type="button" class="btn btn-info btn-sm round-zero">Round</button>
+                      <button type="button" class="btn btn-danger btn-sm remove-item" aria-label="Remove item" title="Remove item">-</button>
+                    </div>
+                    <input type="hidden" name="rounded[]" value="0">
+                  </div>
+                {% endif %}
+                <datalist id="inventoryList">{% for item in inventory %}<option value="{{ item.name }}">{% endfor %}</datalist>
+              </div>
+            </section>
+          </div>
+
+          <div class="col-12 col-lg-4 ms-lg-auto">
+            <section class="bill-panel bill-card total-panel">
+              <div class="total-panel-head">
+                <span class="summary-label">Total Amount</span>
+                <div id="totalAmount" class="total-amount-display">{{ grand_total if show_prefilled_rows and grand_total else '0.00' }}</div>
+              </div>
+
+              <div class="total-actions">
+                {% if edit_mode %}
+                  <button type="submit" class="btn btn-primary">Update Bill</button>
+                  <button type="submit" id="createNewBillBtn" class="btn btn-success" formaction="{{ url_for('start_bill') }}" formmethod="POST">Create New Bill</button>
+                  <a href="{{ url_for('select_customer') }}" class="btn btn-outline-secondary">Start Fresh</a>
+                {% elif draft_mode %}
+                  <button type="submit" class="btn btn-primary">Generate Bill</button>
+                  <button type="submit" class="btn btn-outline-primary" formaction="{{ url_for('save_bill_draft') }}" formmethod="POST" formnovalidate data-skip-bill-validation="1">Update Draft</button>
+                  <button type="submit" class="btn btn-outline-danger" formaction="{{ url_for('archive_bill_draft', draft_id=draft_id) }}" formmethod="POST" formnovalidate data-skip-bill-validation="1">Delete Draft</button>
+                {% else %}
+                  <button type="submit" class="btn btn-primary">Generate Bill</button>
+                  {% if customer %}
+                  <button type="submit" class="btn btn-outline-primary" formaction="{{ url_for('save_bill_draft') }}" formmethod="POST" formnovalidate data-skip-bill-validation="1">Save Draft</button>
+                  {% endif %}
+                  <button type="button" id="clearForm" class="btn btn-outline-danger">Clear Form</button>
+                  {% if success and not edit_mode %}<a href="{{ url_for('latest_bill_preview') }}" target="_blank" class="btn btn-success" id="printBillBtn">Print Generated Bill</a>{% endif %}
+                {% endif %}
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<style>
+  .create-bill-shell {
+    padding: 0.5rem 0 2rem;
+    width: 100%;
+  }
+
+  .create-bill-layout {
+    display: flex;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+
+  .create-bill-canvas {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .create-bill-board {
+    --bs-gutter-x: 1.25rem;
+    --bs-gutter-y: 1.25rem;
+  }
+
+  .create-bill-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .create-bill-header-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .create-bill-eyebrow {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6c7683;
+    font-size: 0.8rem;
+  }
+
+  .bill-panel {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid #e6e9ef;
+    border-radius: 20px;
+    padding: 1.35rem 1.5rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .bill-card {
+    height: 100%;
+  }
+
+  .create-bill-banner {
+    background: linear-gradient(135deg, #f5f8ff, #edf3ff);
+  }
+
+  .bill-history-sidebar {
+    width: 340px;
+    flex: 0 0 340px;
+    position: sticky;
+    top: calc(var(--navbar-height) + 1rem);
+    max-height: calc(100vh - var(--navbar-height) - 1.5rem);
+    overflow: hidden;
+  }
+
+  .history-scroll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    overflow-y: auto;
+    max-height: calc(100vh - var(--navbar-height) - 11rem);
+    padding-right: 0.35rem;
+  }
+
+  .history-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .history-scroll::-webkit-scrollbar-thumb {
+    background: rgba(13, 110, 253, 0.18);
+    border-radius: 999px;
+  }
+
+  .history-count {
+    min-width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #e7f1ff;
+    color: #0d6efd;
+    font-weight: 700;
+    font-size: 0.92rem;
+  }
+
+  .history-entry {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .history-summary {
+    width: 100%;
+    border: 1px solid #e1e6ef;
+    background: linear-gradient(135deg, #f8fbff, #f4f8ff);
+    border-radius: 18px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+    box-shadow: 0 8px 20px rgba(13, 110, 253, 0.06);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+
+  .history-summary:hover {
+    transform: translateY(-1px);
+    border-color: #bfd4ff;
+    box-shadow: 0 10px 24px rgba(13, 110, 253, 0.12);
+  }
+
+  .history-summary.is-open {
+    background: #ffffff;
+    border-color: #86b7fe;
+    box-shadow: 0 12px 28px rgba(13, 110, 253, 0.15);
+  }
+
+  .history-invoice {
+    font-weight: 700;
+    color: #1f2a37;
+  }
+
+  .history-date {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-top: 0.2rem;
+  }
+
+  .history-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    color: #495057;
+    font-size: 0.92rem;
+  }
+
+  .history-amount {
+    font-weight: 700;
+    color: #1f2a37;
+  }
+
+  .history-details-shell {
+    border: 1px solid #e8edf5;
+    border-radius: 16px;
+    background: #ffffff;
+    padding: 1rem 1.1rem;
+  }
+
+  .history-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .history-item-entry {
+    border: 1px solid #e7edf7;
+    border-radius: 14px;
+    background: #fbfcff;
+    padding: 0.85rem 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+
+  .history-item-name {
+    color: #1f2a37;
+    font-weight: 600;
+    line-height: 1.45;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .history-item-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: end;
+  }
+
+  .history-item-price-wrap {
+    min-width: 0;
+  }
+
+  .history-item-price-label {
+    display: block;
+    color: #6c7683;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.15rem;
+  }
+
+  .history-item-price {
+    color: #1f2a37;
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .history-items-state {
+    border: 1px dashed #dbe3f0;
+    border-radius: 14px;
+    background: #fbfcff;
+  }
+
+  .history-add-btn {
+    min-width: 70px;
+    font-weight: 600;
+  }
+
+  .history-open-link {
+    color: #0d6efd;
+    font-size: 0.84rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .history-open-link:hover {
+    text-decoration: underline;
+  }
+
+  .history-empty {
+    border: 1px dashed #d5dce8;
+    border-radius: 18px;
+    background: #fbfcfe;
+    text-align: center;
+    padding: 1.3rem 1rem;
+    color: #6c757d;
+  }
+
+  .customer-chip {
+    font-size: 0.85rem;
+    color: #0d6efd;
+    border: 1px solid #d8e8ff;
+    background: #f5f9ff;
+  }
+
+  .customer-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .summary-field {
+    background: #f8fbff;
+    border: 1px solid #e4eaf4;
+    border-radius: 16px;
+    padding: 0.9rem 1rem;
+    min-width: 0;
+  }
+
+  .summary-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .summary-label,
+  .meta-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6c7683;
+    margin-bottom: 0.35rem;
+  }
+
+  .summary-value {
+    color: #1f2a37;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .customer-toggle-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ebeff5;
+  }
+
+  .customer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #fbfcff;
+    border: 1px solid #e8edf5;
+    border-radius: 999px;
+    padding: 0.55rem 0.9rem;
+    margin-bottom: 0;
+  }
+
+  .customer-toggle .form-check-input {
+    margin-top: 0;
+    margin-left: 0;
+  }
+
+  .invoice-meta-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .meta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #edf1f6;
+  }
+
+  .meta-row:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+
+  .meta-value {
+    text-align: right;
+    color: #1f2a37;
+  }
+
+  .bill-dc-toggle {
+    padding-top: 0.5rem;
+    border-top: 1px solid #edf1f6;
+  }
+
+  .meta-action-stack {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .items-panel {
+    overflow: visible;
+  }
+
+  #items {
+    overflow: visible;
+    padding-bottom: 0.25rem;
+  }
+
+  #items-header {
+    margin-bottom: 0.6rem !important;
+  }
+
+  #items-header > div {
+    min-height: auto;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: visible;
+    min-width: 0;
+  }
+
+  .items-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+
+  .items-toolbar-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .total-panel {
+    background: linear-gradient(135deg, #f8fbff, #eef5ff);
+    border-color: #d7e5fb;
+  }
+
+  .total-panel-head {
+    margin-bottom: 1.1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #d7e5fb;
+  }
+
+  .total-amount-display {
+    font-size: clamp(2rem, 4vw, 2.6rem);
+    font-weight: 800;
+    color: #1d4f91;
+    line-height: 1.1;
+  }
+
+  .tabular-inline {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .total-actions {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .total-actions .btn {
+    width: 100%;
+  }
+
+  .rounded-mark {
+    font-size: 1.2em;
+    color: green;
+  }
+
+  .actions-col {
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .actions-col .round-zero {
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    height: 38px;
+    padding-left: 0.55rem;
+    padding-right: 0.55rem;
+  }
+
+  .actions-col .remove-item {
+    flex: 0 0 38px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+    border-radius: 0.375rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  #items .item-row {
+    background: #fbfdff;
+    border: 1px solid #e4ebf5;
+    border-radius: 16px;
+    padding: 0.8rem 0.85rem;
+    margin-bottom: 0.95rem !important;
+    box-sizing: border-box;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+  }
+
+  #items .item-row.item-row-imported {
+    border-color: #99c1ff;
+    background: #f1f7ff;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+  }
+
+  @media (min-width: 768px) {
+    #items-header,
+    #items .item-row {
+      display: grid !important;
+      grid-template-columns: 44px minmax(0, 2.45fr) minmax(62px, 0.72fr) minmax(92px, 0.95fr) minmax(92px, 0.95fr) 116px;
+      gap: 0.5rem;
+      margin-left: 0;
+      margin-right: 0;
+      width: 100%;
+      min-width: 0;
+    }
+
+    #items.items-dc-enabled #items-header,
+    #items.items-dc-enabled .item-row {
+      grid-template-columns: 44px minmax(0, 2.05fr) minmax(86px, 0.95fr) minmax(56px, 0.65fr) minmax(86px, 0.9fr) minmax(86px, 0.9fr) 116px;
+      min-width: 0;
+    }
+
+    #items-header > div,
+    #items .item-row > div {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      padding-left: 0;
+      padding-right: 0;
+      margin: 0;
+    }
+
+    #items .item-row > .serial-col,
+    #items-header > .sno-col {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #items .item-row > .actions-col {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) 38px;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    #items .item-row > .actions-col .btn {
+      margin-right: 0 !important;
+    }
+
+    #items .item-row > .actions-col .round-zero {
+      width: 100%;
+      min-width: 0;
+      margin-right: 0 !important;
+      white-space: nowrap;
+    }
+
+    #items .item-row > .actions-col .remove-item {
+      justify-self: end;
+    }
+
+    #items .item-row > .actions-col .rounded-mark {
+      grid-column: 1 / -1;
+      margin-left: 0 !important;
+      align-self: center;
+    }
+
+    #items .item-row input.form-control {
+      min-height: 38px;
+      padding-left: 0.55rem;
+      padding-right: 0.55rem;
+      font-size: 0.92rem;
+    }
+
+    #items-header > div {
+      font-size: 0.72rem;
+      align-self: center;
+      padding-top: 0.15rem;
+      padding-bottom: 0.15rem;
+    }
+  }
+
+  @media (max-width: 1199.98px) {
+    .create-bill-layout {
+      flex-direction: column;
+    }
+
+    .bill-history-sidebar {
+      width: 100%;
+      flex-basis: auto;
+      position: static;
+      max-height: none;
+    }
+
+    .history-scroll {
+      max-height: none;
+      padding-right: 0;
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .create-bill-shell {
+      width: calc(100% + 5rem);
+      margin-left: -2.5rem;
+      margin-right: -2.5rem;
+    }
+
+    .create-bill-layout {
+      gap: 1rem;
+    }
+
+    .bill-history-sidebar {
+      width: 380px;
+      flex-basis: 380px;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .bill-panel {
+      padding: 1rem;
+      border-radius: 18px;
+    }
+
+    .create-bill-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .create-bill-header-actions {
+      justify-content: flex-start;
+    }
+
+    .customer-summary-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .summary-field-wide {
+      grid-column: auto;
+    }
+
+    .items-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .items-toolbar-actions {
+      width: 100%;
+    }
+
+    .items-toolbar-actions .btn {
+      flex: 1 1 auto;
+    }
+
+    #items-header {
+      display: none;
+    }
+
+    .item-row {
+      padding: 0.75rem;
+      margin-bottom: 0.9rem !important;
+    }
+
+    .serial-col {
+      font-weight: 700;
+      color: #5f6c7b;
+      margin-bottom: 0.35rem;
+    }
+
+    .history-summary {
+      padding: 0.9rem;
+    }
+
+    .history-item-footer {
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .history-add-btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<script>
+const priceMap = {};
+{% if inventory %}
+  {% for item in inventory %}
+    priceMap[{{ item.name|tojson }}] = {{ (item.unitPrice or 0)|tojson }};
+  {% endfor %}
+{% endif %}
+
+const loadedHistoryInvoices = new Set();
+
+function roundToNearest10(num) {
+  return Math.round(num / 10) * 10;
+}
+
+function updateDisplayedTotal(value) {
+  const totalAmount = document.getElementById('totalAmount');
+  if (totalAmount) totalAmount.textContent = value;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function calculateTotal() {
+  let grand = 0;
+  document.querySelectorAll('.item-row').forEach(row => {
+    const qtyInput = row.querySelector('[name="quantity[]"]');
+    const rateInput = row.querySelector('[name="rate[]"]');
+    const totalInput = row.querySelector('[name="total[]"]');
+    const qty = parseFloat(qtyInput.value) || 0;
+    const rate = parseFloat(rateInput.value) || 0;
+    const lastEdited = row.dataset.lastEdited;
+
+    if (lastEdited === 'total') {
+      let totalVal = parseFloat(totalInput.value) || 0;
+      if (qty > 0) {
+        rateInput.value = (totalVal / qty).toFixed(2);
+      }
+      grand += totalVal;
+    } else {
+      let total = qty * rate;
+      totalInput.value = total ? total.toFixed(2) : '';
+      grand += total;
+    }
+  });
+  updateDisplayedTotal(grand.toFixed(2));
+}
+
+function setupRow(row) {
+  const descInput = row.querySelector('[name="description[]"]');
+  const rateInput = row.querySelector('[name="rate[]"]');
+  const qtyInput = row.querySelector('[name="quantity[]"]');
+  const totalInput = row.querySelector('[name="total[]"]');
+
+  function maybeAutofill() {
+    if (!descInput || !rateInput) return;
+    const key = descInput.value;
+    if (key in priceMap) {
+      if (!rateInput.value || rateInput.dataset.autofilled === "true") {
+        const v = parseFloat(priceMap[key]);
+        rateInput.value = isNaN(v) ? priceMap[key] : v.toFixed(2);
+        rateInput.dataset.autofilled = "true";
+        row.dataset.lastEdited = 'rate';
+        clearRoundedState(row);
+        calculateTotal();
+      }
+    }
+  }
+
+  if (descInput) {
+    descInput.addEventListener('input', maybeAutofill);
+    descInput.addEventListener('change', maybeAutofill);
+  }
+  if (rateInput) {
+    rateInput.addEventListener('input', () => {
+      rateInput.dataset.autofilled = "false";
+      row.dataset.lastEdited = 'rate';
+      clearRoundedState(row);
+      calculateTotal();
+    });
+  }
+  if (qtyInput) {
+    qtyInput.addEventListener('input', () => {
+      row.dataset.lastEdited = 'quantity';
+      clearRoundedState(row);
+      calculateTotal();
+    });
+  }
+  if (totalInput) {
+    totalInput.addEventListener('input', () => {
+      row.dataset.lastEdited = 'total';
+      clearRoundedState(row);
+      calculateTotal();
+    });
+  }
+}
+
+function renumberRows() {
+  document.querySelectorAll('#items .item-row').forEach((row, i) => {
+    row.querySelector('.serial-index').textContent = i + 1;
+  });
+}
+
+function isInvoiceRowEmpty(row) {
+  if (!row) return false;
+  const fields = ['description[]', 'dc_no[]', 'quantity[]', 'rate[]', 'total[]'];
+  return fields.every(name => {
+    const input = row.querySelector(`[name="${name}"]`);
+    return !input || !String(input.value || '').trim();
+  });
+}
+
+function resetInvoiceRow(row) {
+  if (!row) return row;
+
+  const descInput = row.querySelector('[name="description[]"]');
+  const dcInput = row.querySelector('[name="dc_no[]"]');
+  const qtyInput = row.querySelector('[name="quantity[]"]');
+  const rateInput = row.querySelector('[name="rate[]"]');
+  const totalInput = row.querySelector('[name="total[]"]');
+
+  if (descInput) descInput.value = '';
+  if (dcInput) dcInput.value = '';
+  if (qtyInput) {
+    qtyInput.value = '';
+    qtyInput.readOnly = false;
+    qtyInput.classList.remove('bg-light');
+  }
+  if (rateInput) {
+    rateInput.value = '';
+    rateInput.readOnly = false;
+    rateInput.classList.remove('bg-light');
+    rateInput.dataset.autofilled = "false";
+  }
+  if (totalInput) {
+    totalInput.value = '';
+    totalInput.readOnly = false;
+    totalInput.classList.remove('bg-light');
+  }
+
+  let roundedHidden = row.querySelector('input[type="hidden"][name="rounded[]"]');
+  if (!roundedHidden) {
+    roundedHidden = document.createElement('input');
+    roundedHidden.type = "hidden";
+    roundedHidden.name = "rounded[]";
+    row.appendChild(roundedHidden);
+  }
+  roundedHidden.value = "0";
+
+  const roundedMark = row.querySelector('.rounded-mark');
+  if (roundedMark) {
+    roundedMark.remove();
+  }
+
+  row.dataset.lastEdited = '';
+  row.classList.remove('item-row-imported');
+  return row;
+}
+
+function flashImportedRow(row) {
+  if (!row) return;
+  if (row._importHighlightTimeout) {
+    window.clearTimeout(row._importHighlightTimeout);
+  }
+  row.classList.remove('item-row-imported');
+  void row.offsetWidth;
+  row.classList.add('item-row-imported');
+  row._importHighlightTimeout = window.setTimeout(() => {
+    row.classList.remove('item-row-imported');
+  }, 1400);
+}
+
+function restoreRoundedState(row) {
+  if (!row) return;
+  const roundedHidden = row.querySelector('input[type="hidden"][name="rounded[]"]');
+  if (!roundedHidden || roundedHidden.value !== '1') return;
+
+  let existingMark = row.querySelector('.rounded-mark');
+  if (!existingMark) {
+    const tick = document.createElement('span');
+    tick.className = 'rounded-mark ms-2 text-success fw-bold';
+    tick.textContent = '✓';
+    const actionCol = row.querySelector('.actions-col');
+    if (actionCol) {
+      actionCol.appendChild(tick);
+    } else {
+      row.appendChild(tick);
+    }
+  }
+}
+
+function clearRoundedState(row) {
+  if (!row) return;
+  const roundedHidden = row.querySelector('input[type="hidden"][name="rounded[]"]');
+  if (roundedHidden) roundedHidden.value = '0';
+  const mark = row.querySelector('.rounded-mark');
+  if (mark) mark.remove();
+  const qtyInput = row.querySelector('[name="quantity[]"]');
+  if (qtyInput) {
+    qtyInput.readOnly = false;
+    qtyInput.classList.remove('bg-light');
+  }
+}
+
+function appendInvoiceRow(values = {}, options = {}) {
+  const itemsContainer = document.getElementById('items');
+  const existingRows = itemsContainer.querySelectorAll('.item-row');
+  const firstRow = existingRows[0];
+  if (!firstRow) return null;
+
+  const canReuseStarterRow = Boolean(options.reuseStarterRow) && existingRows.length === 1 && isInvoiceRowEmpty(firstRow);
+  const row = canReuseStarterRow ? firstRow : firstRow.cloneNode(true);
+
+  resetInvoiceRow(row);
+
+  if (!canReuseStarterRow) {
+    itemsContainer.appendChild(row);
+    setupRow(row);
+  }
+
+  const descInput = row.querySelector('[name="description[]"]');
+  const dcInput = row.querySelector('[name="dc_no[]"]');
+  const qtyInput = row.querySelector('[name="quantity[]"]');
+  const rateInput = row.querySelector('[name="rate[]"]');
+  const totalInput = row.querySelector('[name="total[]"]');
+
+  if (descInput) descInput.value = values.description || '';
+  if (dcInput) dcInput.value = values.dcNo || '';
+  if (qtyInput) qtyInput.value = values.quantity || '';
+  if (rateInput) {
+    rateInput.value = values.rate || '';
+    rateInput.dataset.autofilled = "false";
+  }
+  if (totalInput) totalInput.value = values.total || '';
+  const roundedHidden = row.querySelector('input[type="hidden"][name="rounded[]"]');
+  if (roundedHidden) {
+    roundedHidden.value = values.rounded ? '1' : '0';
+  }
+  restoreRoundedState(row);
+
+  renumberRows();
+  calculateTotal();
+
+  if (options.highlight) {
+    flashImportedRow(row);
+  }
+
+  if (options.focusQty && qtyInput) {
+    window.requestAnimationFrame(() => {
+      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      qtyInput.focus();
+    });
+  }
+
+  return row;
+}
+
+function createHistoryItemRows(items) {
+  return items.map(item => `
+    <div class="history-item-entry">
+      <div class="history-item-name">${escapeHtml(item.name || '')}</div>
+      <div class="history-item-footer">
+        <div class="history-item-price-wrap">
+          <span class="history-item-price-label">Unit Price</span>
+          <span class="history-item-price">INR ${Number(item.rate || 0).toFixed(2)}</span>
+        </div>
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-primary history-add-btn"
+          data-history-add-item="1"
+          data-item-name="${escapeHtml(item.name || '')}"
+          data-item-rate="${Number(item.rate || 0).toFixed(2)}"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setHistoryBody(invoiceNo, html) {
+  const details = document.getElementById(`history-details-${invoiceNo}`);
+  if (!details) return;
+  const tbody = details.querySelector('[data-history-items-body]');
+  if (!tbody) return;
+  tbody.innerHTML = html;
+}
+
+function closeHistoryEntries(exceptInvoiceNo = null) {
+  document.querySelectorAll('[data-history-toggle]').forEach(button => {
+    const invoiceNo = button.dataset.historyToggle;
+    if (exceptInvoiceNo && invoiceNo === exceptInvoiceNo) return;
+    button.classList.remove('is-open');
+    button.setAttribute('aria-expanded', 'false');
+    const details = document.getElementById(button.dataset.historyDetails);
+    if (details) {
+      details.classList.add('d-none');
+    }
+  });
+}
+
+function toggleHistoryEntry(invoiceNo, button) {
+  const details = document.getElementById(button.dataset.historyDetails);
+  if (!details) return;
+
+  const isOpen = !details.classList.contains('d-none');
+  if (isOpen) {
+    button.classList.remove('is-open');
+    button.setAttribute('aria-expanded', 'false');
+    details.classList.add('d-none');
+    return;
+  }
+
+  closeHistoryEntries(invoiceNo);
+  button.classList.add('is-open');
+  button.setAttribute('aria-expanded', 'true');
+  details.classList.remove('d-none');
+
+  if (loadedHistoryInvoices.has(invoiceNo)) {
+    return;
+  }
+
+  setHistoryBody(invoiceNo, '<div class="history-items-state text-center text-muted py-3">Loading...</div>');
+
+  fetch(`/api/bill_items/${encodeURIComponent(invoiceNo)}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(response.statusText);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data && Array.isArray(data.items) && data.items.length) {
+        setHistoryBody(invoiceNo, createHistoryItemRows(data.items));
+      } else {
+        setHistoryBody(invoiceNo, '<div class="history-items-state text-center text-muted py-3">No items found.</div>');
+      }
+      loadedHistoryInvoices.add(invoiceNo);
+    })
+    .catch(() => {
+      setHistoryBody(invoiceNo, '<div class="history-items-state text-center text-danger py-3">Error loading items.</div>');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.item-row').forEach(row => {
+    setupRow(row);
+    restoreRoundedState(row);
+  });
+  calculateTotal();
+
+  document.getElementById('addItem').addEventListener('click', () => {
+    appendInvoiceRow();
+  });
+
+  document.getElementById('roundAll').addEventListener('click', () => {
+    document.querySelectorAll('.item-row').forEach(row => {
+      const qtyInput = row.querySelector('[name="quantity[]"]');
+      const rateInput = row.querySelector('[name="rate[]"]');
+      const totalInput = row.querySelector('[name="total[]"]');
+      const qty = parseFloat(qtyInput?.value) || 0;
+      const rate = parseFloat(rateInput?.value) || 0;
+      let basis = parseFloat(totalInput.value) || (qty * rate);
+      const rounded = roundToNearest10(basis);
+      totalInput.value = rounded.toFixed(2);
+      if (qty > 0) {
+        rateInput.value = (rounded / qty).toFixed(2);
+      }
+      row.dataset.lastEdited = 'total';
+      let roundedHidden = row.querySelector('input[type="hidden"][name="rounded[]"]');
+      if (roundedHidden) {
+        roundedHidden.value = "1";
+      }
+      let existingMark = row.querySelector('.rounded-mark');
+      if (!existingMark) {
+        const tick = document.createElement('span');
+        tick.className = 'rounded-mark ms-2 text-success fw-bold';
+        tick.textContent = '✓';
+        const actionCol = row.querySelector('.actions-col');
+        if (actionCol) {
+          actionCol.appendChild(tick);
+        } else {
+          row.appendChild(tick);
+        }
+      }
+    });
+    calculateTotal();
+  });
+
+  document.getElementById('items').addEventListener('click', e => {
+    if (e.target.classList.contains('remove-item')) {
+      const row = e.target.closest('.item-row');
+      if (document.querySelectorAll('.item-row').length > 1) {
+        row.remove();
+        renumberRows();
+        calculateTotal();
+      }
+    }
+    if (e.target.classList.contains('round-zero')) {
+      const row = e.target.closest('.item-row');
+      const qtyInput = row.querySelector('[name="quantity[]"]');
+      const rateInput = row.querySelector('[name="rate[]"]');
+      const totalInput = row.querySelector('[name="total[]"]');
+      const qty = parseFloat(qtyInput?.value) || 0;
+      const rate = parseFloat(rateInput?.value) || 0;
+      let basis = parseFloat(totalInput.value) || (qty * rate);
+      const rounded = roundToNearest10(basis);
+      totalInput.value = rounded.toFixed(2);
+      if (qty > 0) {
+        rateInput.value = (rounded / qty).toFixed(2);
+      }
+      row.dataset.lastEdited = 'total';
+      let roundedHidden = row.querySelector('input[type="hidden"][name="rounded[]"]');
+      if (roundedHidden) {
+        roundedHidden.value = "1";
+      }
+      let existingMark = row.querySelector('.rounded-mark');
+      if (!existingMark) {
+        const tick = document.createElement('span');
+        tick.className = 'rounded-mark ms-2 text-success fw-bold';
+        tick.textContent = '✓';
+        const actionCol = row.querySelector('.actions-col');
+        if (actionCol) {
+          actionCol.appendChild(tick);
+        } else {
+          row.appendChild(tick);
+        }
+      }
+      calculateTotal();
+    }
+  });
+
+  const clearBtn = document.getElementById('clearForm');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      const itemRows = document.querySelectorAll('#items .item-row');
+      if (itemRows.length === 0) return;
+      itemRows.forEach((row, idx) => {
+        if (idx > 0) row.remove();
+      });
+      const firstRow = itemRows[0];
+      if (firstRow) {
+        const descInput = firstRow.querySelector('[name="description[]"]');
+        const dcInput = firstRow.querySelector('[name="dc_no[]"]');
+        const qtyInput = firstRow.querySelector('[name="quantity[]"]');
+        const rateInput = firstRow.querySelector('[name="rate[]"]');
+        const totalInput = firstRow.querySelector('[name="total[]"]');
+        if (descInput) descInput.value = '';
+        if (dcInput) dcInput.value = '';
+        if (qtyInput) {
+          qtyInput.value = '';
+          qtyInput.readOnly = false;
+          qtyInput.classList.remove("bg-light");
+        }
+        if (rateInput) {
+          rateInput.value = '';
+          rateInput.dataset.autofilled = "false";
+        }
+        if (totalInput) totalInput.value = '';
+        const roundedHidden = firstRow.querySelector('input[type="hidden"][name="rounded[]"]');
+        if (roundedHidden) roundedHidden.value = "0";
+        const roundedMark = firstRow.querySelector('.rounded-mark');
+        if (roundedMark) roundedMark.remove();
+        firstRow.dataset.lastEdited = '';
+      }
+      renumberRows();
+      calculateTotal();
+    });
+  }
+
+  document.getElementById('toggleDC').addEventListener('change', function() {
+    const enabled = this.checked;
+    const dcEnabledInput = document.getElementById('dcEnabledInput');
+    if (dcEnabledInput) dcEnabledInput.value = enabled ? '1' : '0';
+    document.getElementById('items').classList.toggle('items-dc-enabled', enabled);
+    document.querySelectorAll('.dc-col').forEach(col => {
+      col.classList.toggle('d-none', !enabled);
+      const input = col.querySelector('input');
+      if (input) input.disabled = !enabled;
+    });
+    const headerDesc = document.querySelector('#items-header .desc-col');
+    if (headerDesc) {
+      headerDesc.classList.toggle('col-md-5', !enabled);
+      headerDesc.classList.toggle('col-md-3', enabled);
+    }
+    document.querySelectorAll('#items .item-row .desc-col').forEach(el => {
+      el.classList.toggle('col-md-5', !enabled);
+      el.classList.toggle('col-md-3', enabled);
+    });
+  });
+
+  document.querySelectorAll('[data-history-toggle]').forEach(button => {
+    button.addEventListener('click', () => {
+      toggleHistoryEntry(button.dataset.historyToggle, button);
+    });
+  });
+
+  document.addEventListener('click', e => {
+    const addButton = e.target.closest('[data-history-add-item]');
+    if (!addButton) return;
+
+    appendInvoiceRow(
+      {
+        description: addButton.dataset.itemName || '',
+        quantity: '',
+        rate: addButton.dataset.itemRate || '',
+        total: '',
+        dcNo: ''
+      },
+      {
+        highlight: true,
+        focusQty: true,
+        reuseStarterRow: true
+      }
+    );
+  });
+});
+
+document.getElementById('createBillForm').addEventListener('submit', function(e) {
+  const submitter = e.submitter;
+  if (submitter && submitter.dataset.skipBillValidation === '1') {
+    return;
+  }
+  let valid = true;
+  document.querySelectorAll(".item-row").forEach(row => {
+    row.querySelectorAll("input").forEach(inp => {
+      if (!inp.value && inp.hasAttribute("required")) {
+        valid = false;
+      }
+    });
+  });
+  if (!valid) {
+    e.preventDefault();
+    alert("Please fill in all item fields (description, quantity, unit price, and total) before submitting.");
+  }
+});
+</script>
+{% endblock %}

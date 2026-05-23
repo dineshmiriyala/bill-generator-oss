@@ -1,0 +1,43 @@
+# Locale manifest — user-facing strings for the en-US locale.
+PackageIdentifier: BillGenerator.BillGenerator
+PackageVersion: __VERSION__
+PackageLocale: en-US
+
+Publisher: Bill Generator Contributors
+PublisherUrl: https://github.com/__GH_OWNER__/__GH_REPO__
+PublisherSupportUrl: https://github.com/__GH_OWNER__/__GH_REPO__/issues
+
+Author: Bill Generator Contributors
+PackageName: Bill Generator
+PackageUrl: https://github.com/__GH_OWNER__/__GH_REPO__
+
+License: MIT
+LicenseUrl: https://github.com/__GH_OWNER__/__GH_REPO__/blob/main/LICENSE
+
+Copyright: Copyright (c) Bill Generator Contributors
+CopyrightUrl: https://github.com/__GH_OWNER__/__GH_REPO__/blob/main/LICENSE
+
+ShortDescription: Local-first invoicing and accounting app for small businesses.
+Description: |-
+  Bill Generator is a local-first invoicing and accounting app for small
+  businesses and print shops. Create invoices in three steps, track customers
+  and inventory, record payments and expenses, and print or save PDFs.
+  Optional Supabase mirror for off-machine backups. All customer data stays
+  on your own machine.
+
+Moniker: bill-generator
+Tags:
+  - invoicing
+  - billing
+  - accounting
+  - small-business
+  - sqlite
+  - flask
+  - india
+  - gst
+  - upi
+
+ReleaseNotesUrl: https://github.com/__GH_OWNER__/__GH_REPO__/releases/tag/v__VERSION__
+
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

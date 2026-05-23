@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ invoice.invoiceId }} - Invoice</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    {% set header_size = (sizes.header if sizes is defined and sizes.header is defined else 13) %}
+    {% set dues_table_position = app_info['bill_config'].get('dues-table-position', 'below_totals') %}
+    {% set due_summary_heading = app_info['bill_config'].get('dues-table-heading', 'All Past Dues') or 'All Past Dues' %}
+    {% set logo_print_multiplier = 3.2 if app_info['business'].get('logo_color_mode') == 'blue' else 4 %}
+    {% set logo_print_height = header_size * logo_print_multiplier %}
+    {% macro render_due_summary_block(extra_classes='') -%}
+      {% if show_due_summary %}
+      <div class="{{ extra_classes }}" id="dueSummaryBlock" data-due-summary-total="{{ '%.2f' | format(due_summary_total) }}">
+        <h6 class="mb-2">{{ due_summary_heading }}</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width:45%;">Invoice No</th>
+                <th style="width:25%;">Date</th>
+                <th class="text-end" style="width:30%;">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in due_summary_rows %}
+              <tr data-due-summary-invoice="{{ row.invoice_no }}">
+                <td>{{ row.invoice_no }}</td>
+                <td>{{ row.date_label }}</td>
+                <td class="text-end"><span class="money" data-amount="{{ row.amount }}"></span></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-end mt-3">
+          <div class="fw-semibold text-muted small">Final Total</div>
+          <div class="fw-bold fs-4">&#8377; <span class="money" data-amount="{{ due_summary_total }}"></span></div>
+        </div>
+      </div>
+      {% endif %}
+    {%- endmacro %}
+    <style>
+      body {
+        font-family: 'Poppins', sans-serif;
+      }
+      :root {
+        --hdr-fs: {{ header_size }}px;
+        --cust-fs: {{ (sizes.customer if sizes is defined and sizes.customer is defined else 16) }}px;
+        --invinfo-fs: {{ (sizes.invoice_info if sizes is defined and sizes.invoice_info is defined else 13) }}px;
+        --table-fs: {{ (sizes.table if sizes is defined and sizes.table is defined else 13) }}px;
+        --totals-fs: {{ (sizes.totals if sizes is defined and sizes.totals is defined else 15) }}px;
+        --payment-fs: {{ (sizes.payment if sizes is defined and sizes.payment is defined else 13) }}px;
+        --footer-fs: {{ (sizes.footer if sizes is defined and sizes.footer is defined else 10) }}px;
+        --to-color: {{ to_color }};
+      }
+      .brand-logo {
+        height: calc(var(--hdr-fs) * 4);
+        width: auto;
+      }
+      @media print {
+        .brand-logo {
+          height: {{ logo_print_height | round(2) }}px !important;
+          width: auto !important;
+          max-width: none !important;
+        }
+        .qr-wrapper[style*="display: none"] { display: none !important; }
+      }
+      .payment-info { font-size: 0.95rem; }
+      /* Extra-thin table borders (screen) */
+      table.table { border-collapse: collapse; }
+      .table-bordered > :not(caption) > * { border-width: 0.5px !important; }
+      .table-bordered td, .table-bordered th { border-width: 0.5px !important; }
+      .table { border-color: #c8c8c8 !important; }
+      /* Print/PDF sizing */
+      @page {
+        size: A4;
+        margin: 16mm;
+      }
+      @media print {
+        body { line-height: 1.35; }
+        .container { max-width: 100% !important; }
+        /* Use layoutConfig sizes for print as well */
+        .bill-heading { font-size: var(--hdr-fs) !important; }
+        .from-to-block, .from-to-block * { font-size: var(--cust-fs) !important; }
+        .invoice-info-block, .invoice-info-block * { font-size: var(--invinfo-fs) !important; }
+        .items-table, .items-table th, .items-table td { font-size: var(--table-fs) !important; }
+        .totals-block, .totals-block * { font-size: var(--totals-fs) !important; }
+        .payment-info { font-size: var(--payment-fs) !important; }
+        .footer-note, .services small, .thanks-note { font-size: var(--footer-fs) !important; }
+        /* Ultra-thin table borders (print/PDF) */
+        table.table { table-layout: auto !important; width: 100% !important; }
+        .table { border-color: #b5b5b5 !important; }
+        .table-bordered > :not(caption) > * { border-width: 0.4px !important; }
+        .table-bordered td, .table-bordered th { border-width: 0.4px !important; }
+        .services small { font-weight: 400 !important; line-height: 0.75rem !important; }
+        .fs-5 { font-size: 1.15rem !important; }
+        .fs-4 { font-size: 1.25rem !important; }
+        .payment-info { display: block !important; }
+        #toggleQrBtn { display: none !important; }
+      }
+      /* Apply layoutConfig sizes */
+      .bill-heading { font-size: var(--hdr-fs) !important; }
+      .masthead, .masthead *, .bill-heading { font-size: var(--hdr-fs) !important; }
+      .from-to-block, .from-to-block * { font-size: var(--cust-fs) !important; }
+      .invoice-info-block, .invoice-info-block * { font-size: var(--invinfo-fs) !important; }
+      .items-table, .items-table th, .items-table td { font-size: var(--table-fs) !important; }
+      .totals-block, .totals-block * { font-size: var(--totals-fs) !important; }
+      .payment-info { font-size: var(--payment-fs) !important; }
+      .footer-note, .services small, .thanks-note { font-size: var(--footer-fs) !important; }
+      .bill-heading { text-align: center; margin-top:4px; font-weight:bold; color:#000; }
+      .highlight-info { color:#1a2a6c; }
+      .masthead { text-align: left; }
+      .recipient-name { display: block; }
+      .to-block { display: inline-block; text-align: right; }
+      .to-text, .to-text * { color: var(--to-color) !important; }
+      .contact-line { display: block; }
+      .with-due-summary {
+        padding-top: 2.25rem !important;
+        padding-bottom: 2.25rem !important;
+      }
+      .with-due-summary .masthead {
+        margin-bottom: 0.5rem !important;
+      }
+      .with-due-summary .from-to-block {
+        margin-bottom: 1rem !important;
+      }
+      .with-due-summary .invoice-heading-block {
+        margin-bottom: 0.85rem !important;
+      }
+      .with-due-summary .invoice-info-block {
+        margin-bottom: 0.75rem !important;
+      }
+      .with-due-summary #dueSummaryBlock {
+        margin-top: 0.85rem !important;
+        margin-bottom: 1rem !important;
+      }
+      .with-due-summary #dueSummaryBlock h6 {
+        margin-bottom: 0.45rem !important;
+      }
+      .with-due-summary #dueSummaryBlock .mt-3 {
+        margin-top: 0.65rem !important;
+      }
+      .with-due-summary .items-table {
+        margin-bottom: 0.75rem !important;
+      }
+      .with-due-summary .totals-block {
+        margin-top: 0.1rem;
+      }
+      .with-due-summary .payment-footer-block {
+        margin-top: 0.6rem !important;
+      }
+      .with-due-summary .payment-section {
+        margin-top: 1.25rem !important;
+      }
+      .with-due-summary .payment-info {
+        padding: 0.85rem !important;
+      }
+      .with-due-summary .services {
+        margin-top: 0.8rem !important;
+      }
+    </style>
+</head>
+<body class="p-5{% if show_due_summary %} with-due-summary{% endif %}">
+
+    <div class="container">
+        <div class="masthead mb-2">
+          <h1 class="visually-hidden">{{ app_info['business']['name'] }} — ESTD: {{ app_info['business']['estd'] }}</h1>
+          <img class="brand-logo"
+               src="{{ url_for('static', filename=app_info['business']['logo_path'].replace('static/', '')) }}"
+               alt="{{ app_info['business']['name'] }} — ESTD: {{ app_info['business']['estd'] }}">
+          {% if dues_table_position != 'below_logo' %}
+          <h2 class="bill-heading">{{ app_info['bill_config']['heading'] }}</h2>
+          {% endif %}
+        </div>
+
+        <div class="row mb-4 from-to-block">
+            <div class="col-sm-6">
+                <h5>From:</h5>
+                <p class="fs-5">
+                    <strong class="fs-4">{{ app_info['business']['name'] }}</strong><br>
+                    {{ app_info['business']['address'] }}<br>
+                    GST: {{ app_info['business']['gstin'] }}<br>
+                    Cell: {{ app_info['business']['phone'] }}<br>
+                    email: {{ app_info['business']['email'] }}<br>
+                </p>
+                <small class="text-muted footer-note" style="white-space: nowrap;">{{ app_info['bill_config']['footer'] }}</small>
+            </div>
+            <div class="col-sm-6 text-end">
+                <div class="to-block">
+                    <div class="to-text">
+                      <h5>To:</h5>
+                      <p class="text-dark fs-5 mb-0">
+                        {% set primary_company = customer.company %}
+                        {% if primary_company %}
+                            <strong class="fs-4 recipient-name">{{ primary_company }}</strong>
+                        {% endif %}
+                        {% if customer.address %}
+                            <span class="contact-line">{{ customer["address"] }}</span>
+                        {% endif %}
+                        {% if customer.gst %}
+                            <span class="contact-line">GST: {{ customer["gst"] }}</span>
+                        {% endif %}
+                        {% if customer.phone %}
+                            <span class="contact-line" id="customerPhoneLine">Phone: {{ customer["phone"] }}</span>
+                        {% endif %}
+                      </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if dues_table_position == 'below_logo' %}
+        {{ render_due_summary_block('mt-2 mb-3') }}
+        <div class="invoice-heading-block mb-3">
+          <h2 class="bill-heading">{{ app_info['bill_config']['heading'] }}</h2>
+        </div>
+        {% endif %}
+
+        <div class="row mb-3 invoice-info-block">
+            <div class="col-sm-6">
+                <p class="text-dark"><strong>Invoice No:</strong> {{ invoice.invoiceId }}</p>
+                <p class="text-dark"><strong>Date:</strong> {{ invoice.createdAt.strftime('%d-%m-%Y') }}</p>
+            </div>
+        </div>
+
+        <table class="table table-bordered items-table">
+          {% if dcno %}
+          <colgroup>
+            <col style="width:6%">
+            <col style="width:58%">
+            <col style="width:16%">
+            <col style="width:10%">
+            <col style="width:10%">
+          </colgroup>
+          {% else %}
+          <colgroup>
+            <col style="width:6%">
+            <col style="width:64%">
+            <col style="width:15%">
+            <col style="width:15%">
+          </colgroup>
+          {% endif %}
+            <thead class="table-light text-center">
+                <tr>
+                    <th>Serial No</th>
+                    <th>Description</th>
+                    {% if dcno %}<th>Delivery Challan No</th>{% endif %}
+                    <th>Quantity</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td class="text-center">{{ loop.index }}</td>
+                    <td class="text-start">{{ item[0] }}</td>
+                    {% if dcno %}
+                    <td class="text-center">{{ dc_numbers[loop.index0] if dc_numbers is defined and dc_numbers|length > loop.index0 else '' }}</td>
+                    {% endif %}
+                    <td class="text-center">{{ item[2] }}</td>
+                    <td class="text-center"><span class="money" data-amount="{{ item[6] }}"></span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="text-end totals-block">
+            <h5>Total: &#8377 <strong><span class="money" data-amount="{{ invoice.totalAmount or 0 }}"></span></strong></h5>
+            {% if total_in_words %}
+            <div class="text-muted" style="font-size: 0.95rem;">Amount in words: <em>{{ total_in_words }}</em></div>
+            {% endif %}
+        </div>
+
+        <div class="mt-3 text-end payment-footer-block">
+          <small class="text-muted footer-note">{{ app_info['bill_config']['payment-footer'] }}</small>
+        </div>
+
+        {% if dues_table_position != 'below_logo' %}
+        {{ render_due_summary_block('mt-3') }}
+        {% endif %}
+
+        <div class="row mt-5 payment-section">
+          <div class="col-12 payment-info border rounded p-3 bg-light-subtle">
+            <h6 class="mb-2">Payment Information</h6>
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="flex-grow-1">
+                Account Name: <strong>{{ app_info['bank']['account_name'] }}</strong><br>
+                Bank: <strong>{{ app_info['bank']['bank_name'] }}, {{ app_info['bank']['branch'] }}</strong><br>
+                Account Number: <strong>{{ app_info['bank']['account_number'] }}</strong><br>
+                IFSC: <strong>{{ app_info['bank']['ifsc'] }}</strong><br>
+                PhonePe/GPay: <strong>{{ app_info['bank']['bhim'] }}</strong>
+              </div>
+              {% if qr_svg_base64 %}
+              <div class="qr-wrapper text-end d-print-block" style="flex-shrink:0; margin-top:-0.5rem;">
+                <div class="qr-box d-flex align-items-center justify-content-end" style="font-size: inherit;">
+                  <div class="qr-inner d-flex align-items-center justify-content-center" style="gap:0.75rem;">
+                    <img src="data:image/svg+xml;base64,{{ qr_svg_base64 }}" alt="UPI QR Code"
+                         style="width:calc(var(--payment-fs) * 9); height:calc(var(--payment-fs) * 9); border-radius:8px; background:#fff; box-shadow:0 1px 5px rgba(0,0,0,0.05);">
+                    <div class="text-muted text-start" style="font-size:calc(var(--payment-fs) * 0.8); line-height:1.2;">
+                      <div><strong>{{ upi_name }}</strong></div>
+                      <div>UPI: {{ upi_id }}</div>
+                      <div>Total: <strong>&#8377; <span class="money" data-amount="{{ qr_total }}"></span></strong></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3" style="border:0;border-top:2px solid #c8c8c8;" />
+        <div class="services text-center mt-2">
+          <small class="text-muted">
+            Services:
+            {% for service in app_info['services'] %}
+              {{ service }}{% if not loop.last %} • {% endif %}
+            {% endfor %}
+          </small>
+        </div>
+
+        <div class="text-center mt-4 d-print-none">
+            <button onclick="window.print()" class="btn btn-primary">Print / Save as PDF</button>
+            <button id="toggleQrBtn" class="btn btn-secondary ms-2">Hide UPI QR</button>
+            {% if customer.phone %}
+            <button id="togglePhoneBtn" class="btn btn-secondary ms-2">Hide Phone</button>
+            {% endif %}
+            <p class="mt-2 text-muted" style="font-size: 0.9rem;">Tip: Uncheck “Headers and footers” in print dialog for a clean copy.</p>
+        </div>
+    </div>
+
+
+<script>
+  (function(){
+    function formatINR(n){
+      const num = Number(n||0);
+      return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    document.querySelectorAll('.money').forEach(el => {
+      const v = el.getAttribute('data-amount');
+      el.textContent = formatINR(v);
+    });
+  })();
+</script>
+
+<script>
+  // Debug: log CSS variable values from :root
+  const rootStyles = getComputedStyle(document.documentElement);
+  console.log("LayoutConfig sizes in use:");
+  console.log("Header:", rootStyles.getPropertyValue('--hdr-fs'));
+  console.log("Customer:", rootStyles.getPropertyValue('--cust-fs'));
+  console.log("Invoice Info:", rootStyles.getPropertyValue('--invinfo-fs'));
+  console.log("Table:", rootStyles.getPropertyValue('--table-fs'));
+  console.log("Totals:", rootStyles.getPropertyValue('--totals-fs'));
+  console.log("Payment:", rootStyles.getPropertyValue('--payment-fs'));
+  console.log("Footer:", rootStyles.getPropertyValue('--footer-fs'));
+</script>
+
+<script>
+  (function(){
+    const phoneToggle = document.getElementById('togglePhoneBtn');
+    const phoneLine = document.getElementById('customerPhoneLine');
+    if (!phoneToggle || !phoneLine) return;
+
+    phoneToggle.addEventListener('click', function() {
+      if (phoneLine.classList.contains('d-none')) {
+        phoneLine.classList.remove('d-none');
+        this.textContent = 'Hide Phone';
+      } else {
+        phoneLine.classList.add('d-none');
+        this.textContent = 'Show Phone';
+      }
+    });
+  })();
+</script>
+
+<script>
+  (function(){
+    const toggleQrBtn = document.getElementById("toggleQrBtn");
+    if (!toggleQrBtn) return;
+    toggleQrBtn.addEventListener("click", function() {
+      const qrSection = document.querySelector(".qr-wrapper");
+      if (!qrSection) return;
+      if (qrSection.style.display === "none") {
+        qrSection.style.display = "";
+        this.textContent = "Hide UPI QR";
+      } else {
+        qrSection.style.display = "none";
+        this.textContent = "Show UPI QR";
+      }
+    });
+  })();
+</script>
+</body>
+</html>

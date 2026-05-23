@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Bill Generator{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Bootstrap 5 CSS CDN -->
+  <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <style>
+    :root {
+      --navbar-height: 0px;
+    }
+    .btn-back {
+      background-color: #0056b3;
+      color: #fff;
+      border: none;
+    }
+    .btn-back:hover {
+      background-color: #003f7f;
+      color: #fff;
+    }
+    .btn-home {
+      background-color: #198754;
+      color: #fff;
+      border: none;
+    }
+    .btn-home:hover {
+      background-color: #146c43;
+      color: #fff;
+    }
+    .app-navbar .btn,
+    .app-navbar .form-control,
+    .app-navbar .btn-close {
+      border-radius: 999px;
+    }
+    html {
+      overflow-y: scroll;
+    }
+    .app-navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1050;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    body.has-navbar {
+      --navbar-height: 72px;
+      padding-top: var(--navbar-height);
+    }
+  </style>
+</head>
+<body class="d-flex flex-column min-vh-100 {% if not hide_navbar %}has-navbar{% endif %}">
+
+{% if not hide_navbar %}
+<nav class="navbar navbar-expand-lg app-navbar" style="background-color: #24292f; padding: 0.5rem 1rem;">
+  <div class="container d-flex align-items-center justify-content-between w-100">
+    <!-- Left side: Back + Menu -->
+    <div class="d-flex align-items-center">
+      {% if back_to_url %}
+        <a href="{{ back_to_url }}" class="btn btn-sm me-2" style="background-color: #30363d; color: #f0f6fc; border: 1px solid #484f58;">←</a>
+      {% elif back_to_select_customer %}
+        <a href="{{ url_for('select_customer') }}" class="btn btn-sm me-2" style="background-color: #30363d; color: #f0f6fc; border: 1px solid #484f58;">←</a>
+      {% elif back_two_pages %}
+        <button class="btn btn-sm me-2" onclick="history.go(-3)" style="background-color: #30363d; color: #f0f6fc; border: 1px solid #484f58;">←</button>
+      {% else %}
+        <button class="btn btn-sm me-2" onclick="history.back()" style="background-color: #30363d; color: #f0f6fc; border: 1px solid #484f58;">←</button>
+      {% endif %}
+      <button class="btn btn-sm me-3" id="menuToggle"
+              style="background-color: transparent; border: none; color: #f0f6fc; font-size: 1.4rem;">☰</button>
+      <a class="navbar-brand fw-semibold text-white" href="/" style="font-size: 1.1rem;">{{ APP_INFO.business.name if APP_INFO and APP_INFO.business and APP_INFO.business.name else APP_NAME }}</a>
+    </div>
+
+    <!-- Right side: Search + Add (+) Dropdown -->
+    <div class="d-flex align-items-center">
+      <!-- Apple-Style Search Bar -->
+      <div class="position-relative me-3" style="width: 220px;">
+        <input type="search" id="globalSearch" class="form-control form-control-sm rounded-1 ps-3"
+               placeholder="Search…" style="background-color: #0d1117; color: #f0f6fc; border: 1px solid #30363d; caret-color: #f0f6fc;">
+        <style>
+          ::placeholder {
+            color: #9ca3af !important;
+            opacity: 1;
+          }
+        </style>
+        <ul id="searchResults" class="list-group position-absolute w-100 shadow-sm"
+            style="z-index: 1050; display: none; top: 36px;"></ul>
+      </div>
+
+      <!-- GitHub-style "+" Dropdown -->
+      <div class="dropdown me-2">
+        <button class="btn btn-sm" type="button" id="newDropdown" data-bs-toggle="dropdown" aria-expanded="false"
+                style="background-color: #21262d; border: 1px solid #30363d; color: #f0f6fc; font-size: 1.3rem; line-height: 1;">
+          +
+        </button>
+        <ul class="dropdown-menu dropdown-menu-dark shadow-sm" aria-labelledby="newDropdown" style="left: 0;">
+          <li><a class="dropdown-item" href="/select_customer">New Bill</a></li>
+          <li><a class="dropdown-item" href="/create_customers">New Customer</a></li>
+          <li><a class="dropdown-item" href="/add_inventory">New Inventory Item</a></li>
+        </ul>
+      </div>
+      <a href="{{ url_for('config') }}"
+         class="btn btn-sm d-flex align-items-center justify-content-center"
+         style="width: 40px; height: 40px; background-color: #21262d; border: 1px solid #30363d; color: #f0f6fc;">
+        <img src="{{ url_for('static', filename='logos/config.svg') }}" alt="Settings" style="width: 18px; height: 18px; filter: invert(1) brightness(2);">
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- Offcanvas Sidebar for Quick Links -->
+<div class="offcanvas offcanvas-start text-bg-dark" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+  <div class="offcanvas-header border-bottom border-secondary">
+    <h5 class="offcanvas-title" id="offcanvasMenuLabel">Quick Links</h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+  </div>
+  <div class="offcanvas-body">
+    <ul class="list-unstyled">
+      <li><a class="text-white text-decoration-none d-block py-2" href="/view_bills">View Bills</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/qr_code">Generate UPI QR</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/select_customer">Create Bill</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/view_customers">View Customers</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/view_inventory">Inventory</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/accounting">Accounting</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/accounting/statement">Company Books</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/accounting/transactions">All Transactions</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/analytics">Business Analytics</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/recover">Data Recovery</a></li>
+      <li><a class="text-white text-decoration-none d-block py-2" href="/config">Account Settings</a></li>
+    </ul>
+  </div>
+</div>
+
+{% endif %}
+
+<!-- Flash Messages -->
+{% set messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+  {% set messages = messages[-2:] %}
+  {% if hide_navbar %}
+    <div class="position-fixed top-0 start-50 translate-middle-x w-100 px-3" style="z-index: 1080; max-width: 680px; padding-top: 1rem;">
+      {% for category, message in messages %}
+        {% set normalized_category = 'warning' if category == 'warn' else category %}
+        {% set dismiss_ms = 6000 if normalized_category in ['warning', 'danger'] else 4000 %}
+        <div class="alert alert-{{ normalized_category }} alert-dismissible fade show shadow-sm mb-2" role="alert" data-auto-dismiss-ms="{{ dismiss_ms }}">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+        {% set normalized_category = 'warning' if category == 'warn' else category %}
+        {% set dismiss_ms = 6000 if normalized_category in ['warning', 'danger'] else 4000 %}
+        <div class="alert alert-{{ normalized_category }} alert-dismissible fade show shadow-sm" role="alert" data-auto-dismiss-ms="{{ dismiss_ms }}">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endif %}
+
+<main class="flex-fill">
+  <div class="container py-4">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<footer class="text-muted fixed-bottom bg-light py-2">
+  <div class="container text-end">
+    {% if not hide_navbar %}<small>Created by MD</small>{% endif %}
+  </div>
+</footer>
+
+<!-- Bootstrap 5 JS Bundle -->
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+
+<script>
+  (function () {
+    function hasClass(element, className) {
+      if (!element || !element.className) {
+        return false;
+      }
+      return (' ' + element.className + ' ').indexOf(' ' + className + ' ') !== -1;
+    }
+
+    function getDismissDelay(element) {
+      var explicitDelay = parseInt(element.getAttribute('data-auto-dismiss-ms') || '', 10);
+      if (!isNaN(explicitDelay) && explicitDelay > 0) {
+        return explicitDelay;
+      }
+      if (hasClass(element, 'alert-warning') || hasClass(element, 'alert-danger')) {
+        return 6000;
+      }
+      return 4000;
+    }
+
+    function closeAlertElement(element) {
+      if (!element || element.getAttribute('data-alert-closing') === '1') {
+        return;
+      }
+      element.setAttribute('data-alert-closing', '1');
+      element.className = element.className.replace(/\bshow\b/g, '').replace(/\s{2,}/g, ' ').replace(/^\s+|\s+$/g, '');
+      element.style.opacity = '0';
+      element.style.transition = 'opacity 0.2s ease';
+      window.setTimeout(function () {
+        if (element && element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
+      }, 220);
+    }
+
+    function bindAlert(element) {
+      if (!element || element.getAttribute('data-auto-dismiss-bound') === '1') {
+        return;
+      }
+      element.setAttribute('data-auto-dismiss-bound', '1');
+      window.setTimeout(function () {
+        closeAlertElement(element);
+      }, getDismissDelay(element));
+    }
+
+    function bindAlerts() {
+      var alerts = document.querySelectorAll('.alert');
+      var i;
+      for (i = 0; i < alerts.length; i += 1) {
+        bindAlert(alerts[i]);
+      }
+    }
+
+    function findAlertContainer(node) {
+      var current = node;
+      while (current) {
+        if (hasClass(current, 'alert')) {
+          return current;
+        }
+        current = current.parentNode;
+      }
+      return null;
+    }
+
+    document.addEventListener('click', function (event) {
+      var target = event.target;
+      var alertElement;
+      if (!target) {
+        return;
+      }
+      if (hasClass(target, 'btn-close') || target.getAttribute('data-bs-dismiss') === 'alert') {
+        alertElement = findAlertContainer(target);
+      } else if (target.parentNode && (hasClass(target.parentNode, 'btn-close') || target.parentNode.getAttribute('data-bs-dismiss') === 'alert')) {
+        alertElement = findAlertContainer(target.parentNode);
+      }
+      if (alertElement) {
+        if (event.preventDefault) {
+          event.preventDefault();
+        }
+        closeAlertElement(alertElement);
+      }
+    });
+
+    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+      bindAlerts();
+    }
+    document.addEventListener('DOMContentLoaded', bindAlerts);
+    window.addEventListener('load', bindAlerts);
+    window.addEventListener('pageshow', bindAlerts);
+  }());
+</script>
+
+<script>
+  const searchLinks = [
+    { name: "View Bills", url: "/view_bills" },
+    { name: "Create Bill", url: "/select_customer" },
+    { name: "View Customers", url: "/view_customers" },
+    { name: "Add Customer", url: "/create_customers" },
+    { name: "Inventory List", url: "/view_inventory" },
+    { name: "Add Item", url: "/add_inventory" },
+    { name: "All Transactions", url: "/accounting/transactions" },
+    { name: "Accounting", url: "/accounting" },
+    { name: "Company Books", url: "/accounting/statement" },
+    { name: "Data Recovery", url: "/recover" },
+    { name: "Home", url: "/" },
+    { name: "Analytics", url: "/analytics" },
+    { name: "Generate UPI QR", url: "/qr_code" },
+    { name: "Account Settings", url: "/config" },
+  ];
+
+  const searchInput = document.getElementById('globalSearch');
+  const searchResults = document.getElementById('searchResults');
+
+  if (searchInput && searchResults) {
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      searchResults.innerHTML = '';
+      if (!query) {
+        searchResults.style.display = 'none';
+        return;
+      }
+
+      const matches = searchLinks.filter(link => link.name.toLowerCase().includes(query));
+      matches.forEach(match => {
+        const item = document.createElement('li');
+        item.className = 'list-group-item list-group-item-action';
+        item.textContent = match.name;
+        item.addEventListener('click', () => {
+          window.location.href = match.url;
+        });
+        searchResults.appendChild(item);
+      });
+      searchResults.style.display = matches.length ? 'block' : 'none';
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!searchResults.contains(e.target) && e.target !== searchInput) {
+        searchResults.style.display = 'none';
+      }
+    });
+  }
+</script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const offcanvasEl = document.getElementById('offcanvasMenu');
+    const toggleBtn = document.getElementById('menuToggle');
+    if (offcanvasEl && toggleBtn) {
+      const bsOffcanvas = new bootstrap.Offcanvas(offcanvasEl);
+      toggleBtn.addEventListener('click', () => bsOffcanvas.toggle());
+    }
+  });
+</script>
+
+<script>
+  // User Interaction Analytics Script
+  const pageStartTime = Date.now();
+
+  function sendAnalytics(activity, details = {}) {
+    const payload = {
+      timestamp: new Date().toISOString(),
+      current_page: window.location.pathname,
+      activity: activity,
+      click: details.click || null,
+      time_spent: (Date.now() - pageStartTime) / 1000,
+      previous_page: document.referrer || null,
+      user: "{{ session.get('username', 'guest') }}"
+    };
+    fetch('/analytics_event', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }).catch(function(error) {
+      // Optionally log error, or silently ignore
+      // console.error('Analytics error:', error);
+    });
+  }
+
+  window.addEventListener('load', function() {
+    sendAnalytics('page_load');
+  });
+
+  document.addEventListener('click', function(event) {
+    const target = event.target;
+    if (target.tagName === 'BUTTON' || target.tagName === 'A') {
+      let clickInfo = null;
+      if (target.tagName === 'A') {
+        clickInfo = target.getAttribute('href') || target.textContent.trim() || null;
+      } else {
+        clickInfo = target.textContent.trim() || null;
+      }
+      sendAnalytics('click', { click: clickInfo });
+    }
+  });
+
+  window.addEventListener('beforeunload', function() {
+    sendAnalytics('page_exit');
+  });
+</script>
+
+</body>
+</html>

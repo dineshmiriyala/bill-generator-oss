@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="select-shell">
+  <div class="select-hero text-center mb-4">
+    <p class="eyebrow">Start Bill</p>
+    <h2 class="fw-semibold mb-2">Choose a customer</h2>
+    <p class="text-muted mb-3">All customers are laid out A–Z. Jump with the alphabet rail or scroll through the list.</p>
+    <div class="d-flex justify-content-center gap-2 flex-wrap">
+      <a href="{{ url_for('add_customers', next_url=url_for('start_bill'), bill_generation='true') }}" class="btn btn-dark px-4 rounded-pill shadow-sm">+ New Customer</a>
+      <a href="{{ url_for('home') }}" class="btn btn-outline-secondary px-4 rounded-pill">Back to home</a>
+    </div>
+  </div>
+
+  {% set sorted_customers = customers or [] %}
+  {% set alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' %}
+  {% set letters_ns = namespace(letters=[]) %}
+  {% for c in sorted_customers %}
+    {% set label = (c.company or c.name or '')|trim %}
+    {% set raw_letter = label[:1].upper() if label else '#' %}
+    {% set letter = raw_letter if raw_letter in alphabet else '#' %}
+    {% if letter not in letters_ns.letters %}
+      {% set _ = letters_ns.letters.append(letter) %}
+    {% endif %}
+  {% endfor %}
+
+  <div class="select-layout">
+    <div class="flex-grow-1">
+      <div class="glass-panel mb-3">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <div class="text-muted small text-uppercase">Customers</div>
+            <div class="fw-semibold">{{ customers|length }} on file</div>
+          </div>
+          <form method="GET" action="{{ url_for('select_customer') }}" class="search-inline d-flex gap-2 align-items-center">
+            <input type="text"
+                   name="q"
+                   class="form-control form-control-sm shadow-sm"
+                   placeholder="Search company"
+                   value="{{ request.args.get('q','') }}"
+                   style="min-width: 240px;">
+            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3">Search</button>
+            <a href="{{ url_for('select_customer') }}" class="btn btn-light btn-sm rounded-pill px-3">Clear</a>
+          </form>
+        </div>
+      </div>
+
+      {% if sorted_customers %}
+        {% set group_ns = namespace(current='') %}
+        {% for c in sorted_customers %}
+          {% set label = (c.company or c.name or '')|trim %}
+          {% set raw_letter = label[:1].upper() if label else '#' %}
+          {% set letter = raw_letter if raw_letter in alphabet else '#' %}
+
+          {% if letter != group_ns.current %}
+            {% if not loop.first %}</div>{% endif %}
+            {% set group_ns.current = letter %}
+            <div id="letter-{{ letter if letter != '#' else 'misc' }}" class="letter-group">
+              <div class="d-flex align-items-center gap-3 letter-heading">
+                <div class="letter-pill">{{ letter }}</div>
+                <div class="flex-grow-1"><hr class="flex-grow-1 my-0"></div>
+              </div>
+          {% endif %}
+
+          <div class="customer-card glass-panel">
+            <div class="flex-grow-1">
+              <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <div class="fw-semibold">{{ c.company or 'Untitled Company' }}</div>
+                {% set draft_count = draft_counts.get(c.id, 0) if draft_counts is defined else 0 %}
+                {% if draft_count %}
+                <span class="badge rounded-pill text-bg-warning">Drafts {{ draft_count }}</span>
+                {% endif %}
+              </div>
+              {% if c.phone %}<div class="text-muted small">Phone · {{ c.phone }}</div>{% endif %}
+              {% if c.address %}<div class="text-muted small">Address · {{ c.address }}</div>{% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-2 ms-3 flex-wrap justify-content-end">
+              {% if draft_count %}
+              <a href="{{ url_for('bill_drafts', customer_id=c.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">Open Drafts</a>
+              {% endif %}
+              <form method="POST" action="{{ url_for('start_bill') }}">
+                <input type="hidden" name="customer" value="{{ c.phone }}">
+                <button type="submit" class="btn btn-primary rounded-pill px-3">Select</button>
+              </form>
+            </div>
+          </div>
+
+          {% if loop.last %}</div>{% endif %}
+        {% endfor %}
+      {% else %}
+        <div class="glass-panel text-center py-5">
+          <p class="mb-3">Can't find a company with that name.</p>
+          <a href="{{ url_for('add_customers', next_url=url_for('start_bill'), bill_generation='true') }}" class="btn btn-dark rounded-pill px-4">Add new customer</a>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="alphabet-rail fixed-rail">
+      {% for letter in alphabet %}
+        {% if letter in letters_ns.letters %}
+          <button type="button" class="alphabet-btn" data-target="letter-{{ letter }}">{{ letter }}</button>
+        {% endif %}
+      {% endfor %}
+      {% if '#' in letters_ns.letters or not letters_ns.letters %}
+        <button type="button" class="alphabet-btn" data-target="letter-misc">#</button>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .select-shell { padding: 2rem 1rem; max-width: 1100px; margin: 0 auto; padding-right: 90px; }
+  .select-hero { background: linear-gradient(135deg, #f5f7fb, #e9ecf5); border: 1px solid #e1e6ef; border-radius: 20px; padding: 1.75rem; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+  .select-hero .eyebrow { letter-spacing: 0.1em; text-transform: uppercase; color: #6c7683; font-size: 0.8rem; margin-bottom: 0.4rem; }
+  .select-layout { display: flex; gap: 1rem; align-items: flex-start; }
+  .alphabet-rail.fixed-rail { position: fixed; right: 18px; top: 130px; gap: 0.35rem; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 0.6rem; border-radius: 18px; border: 1px solid #d7dce6; box-shadow: 0 10px 40px rgba(0,0,0,0.08); width: 54px; z-index: 1020; display: flex; flex-direction: column; align-items: center; }
+  .alphabet-btn { width: 40px; height: 40px; border-radius: 12px; border: none; background: #0d6efd; color: #fff; font-weight: 700; transition: all 0.15s ease; }
+  .alphabet-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(13,110,253,0.2); }
+  .glass-panel { background: rgba(255,255,255,0.9); border: 1px solid #e6e9ef; border-radius: 16px; padding: 1rem 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.04); }
+  .letter-group { margin-bottom: 1.75rem; }
+  .letter-heading { margin: 0.25rem 0 0.75rem; }
+  .letter-pill { width: 42px; height: 42px; border-radius: 12px; background: #0d6efd; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 8px 20px rgba(13,110,253,0.25); }
+  .customer-card { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.75rem; padding: 0.85rem 1rem; }
+  @media (max-width: 768px) {
+    .select-shell { padding: 1.25rem 0.5rem; }
+    .select-layout { flex-direction: column; }
+    .alphabet-rail.fixed-rail { position: static; flex-direction: row; width: auto; justify-content: flex-start; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem; }
+    .select-shell { padding-right: 1rem; }
+  }
+  .search-inline { flex-wrap: nowrap; }
+  @media (max-width: 576px) {
+    .search-inline { flex-wrap: wrap; width: 100%; }
+    .search-inline input { flex: 1 1 100%; }
+  }
+</style>
+
+<script>
+  (() => {
+    const buttons = document.querySelectorAll('.alphabet-btn');
+    const offset = 70;
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const el = document.getElementById(targetId);
+        if (!el) return;
+        const y = el.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      });
+    });
+  })();
+</script>
+{% endblock %}

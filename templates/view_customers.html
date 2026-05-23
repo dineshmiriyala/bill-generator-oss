@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="customers-shell">
+  <div class="customers-hero">
+    <div>
+      <p class="customers-eyebrow mb-1">Customer Directory</p>
+      <h2 class="fw-semibold mb-2">View Customers</h2>
+      <p class="text-muted mb-0">Search quickly, open customer details, start a bill, or jump into statements without digging through a table.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('add_customers') }}" class="btn btn-primary rounded-pill px-4">Add New Customer</a>
+      <a href="{{ url_for('accounting_dashboard') }}" class="btn btn-outline-secondary rounded-pill px-4">Client Statement</a>
+    </div>
+  </div>
+
+  <div class="customers-toolbar">
+    <div class="customers-toolbar-summary">
+      <span class="customers-summary-label">Customers</span>
+      <strong>{{ customers|length }}</strong>
+    </div>
+    <form method="GET" action="{{ url_for('view_customers') }}" class="customers-search-form">
+      <input
+        type="text"
+        name="q"
+        class="form-control"
+        placeholder="Search by phone, name, or company"
+        value="{{ request.args.get('q', '') }}"
+      >
+      <button type="submit" class="btn btn-primary">Search</button>
+      {% if request.args.get('q') %}
+      <a href="{{ url_for('view_customers') }}" class="btn btn-light">Clear</a>
+      {% endif %}
+    </form>
+  </div>
+
+  {% if customers %}
+  <div class="customers-grid">
+    {% for c in customers %}
+    <div class="customer-directory-card">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+        <div>
+          <div class="customer-directory-company">{{ c.company or 'Untitled Company' }}</div>
+          <div class="customer-directory-name">{{ c.name or 'No customer name' }}</div>
+        </div>
+        <span class="customer-directory-date">
+          {{ c.createdAt.strftime('%d %b %Y') if c.createdAt else '—' }}
+        </span>
+      </div>
+
+      <div class="customer-directory-grid">
+        <div class="customer-directory-field">
+          <span class="customer-directory-label">Phone / ID</span>
+          <strong>{{ c.phone or '—' }}</strong>
+        </div>
+        <div class="customer-directory-field">
+          <span class="customer-directory-label">Email</span>
+          <strong>{{ c.email or '—' }}</strong>
+        </div>
+        <div class="customer-directory-field">
+          <span class="customer-directory-label">GST</span>
+          <strong>{{ c.gst or '—' }}</strong>
+        </div>
+        <div class="customer-directory-field">
+          <span class="customer-directory-label">Joined On</span>
+          <strong>{{ c.createdAt.strftime('%d %b %Y, %I:%M %p') if c.createdAt else '—' }}</strong>
+        </div>
+        <div class="customer-directory-field customer-directory-field-wide">
+          <span class="customer-directory-label">Address</span>
+          <strong>{{ c.address or '—' }}</strong>
+        </div>
+      </div>
+
+      <div class="customer-directory-links">
+        <a href="{{ url_for('accounting_customer_simple_statement', customer_id=c.id) }}" target="_blank" class="customer-link-card">
+          <span class="customer-link-label">Simple Statement</span>
+          <strong>Open PDF</strong>
+        </a>
+        <a href="{{ url_for('accounting_customer_detail', customer_id=c.id) }}" class="customer-link-card">
+          <span class="customer-link-label">Accounting Page</span>
+          <strong>Open Customer Accounting</strong>
+        </a>
+      </div>
+
+      <div class="customer-directory-actions">
+        <form method="POST" action="{{ url_for('view_customers') }}">
+          <input type="hidden" name="customer" value="{{ c.phone }}">
+          <button type="submit" class="btn btn-success">Create Bill</button>
+        </form>
+        <a class="btn btn-outline-info" href="{{ url_for('about_user', customer_id=c.id, next=request.full_path[:-1] if request.full_path.endswith('?') else request.full_path) }}">About</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('edit_user', customer_id=c.id, next=request.full_path[:-1] if request.full_path.endswith('?') else request.full_path) }}">Edit</a>
+        <a class="btn btn-outline-danger" href="{{ url_for('delete_customer', cid=c.id) }}">Delete</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="customers-empty">
+    <strong>No customer found.</strong>
+    <div class="small mt-2">Try a different search, or add a new customer.</div>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  .customers-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0.75rem 0 2rem;
+  }
+
+  .customers-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding: 1.6rem;
+    border-radius: 24px;
+    border: 1px solid #e6e9ef;
+    background: linear-gradient(135deg, #f8fbff, #f2f6ff);
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
+    margin-bottom: 1rem;
+  }
+
+  .customers-eyebrow {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6c7683;
+    font-size: 0.78rem;
+  }
+
+  .customers-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .customers-toolbar-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    border-radius: 18px;
+    border: 1px solid #e5eaf2;
+    background: #fbfcff;
+    color: #1f2a37;
+  }
+
+  .customers-summary-label {
+    color: #6c7683;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .customers-search-form {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    flex: 1 1 460px;
+    justify-content: flex-end;
+  }
+
+  .customers-search-form .form-control {
+    flex: 1 1 300px;
+    min-width: 240px;
+  }
+
+  .customers-grid {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .customer-directory-card {
+    border: 1px solid #e6e9ef;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.04);
+    padding: 1.2rem 1.25rem;
+  }
+
+  .customer-directory-company {
+    font-size: 1.08rem;
+    font-weight: 700;
+    color: #1f2a37;
+    margin-bottom: 0.15rem;
+  }
+
+  .customer-directory-name {
+    color: #6c757d;
+    font-size: 0.94rem;
+  }
+
+  .customer-directory-date {
+    color: #6c7683;
+    font-size: 0.86rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .customer-directory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 1rem;
+  }
+
+  .customer-directory-field {
+    min-width: 0;
+    border: 1px solid #edf1f6;
+    border-radius: 16px;
+    background: #fafcff;
+    padding: 0.85rem 0.95rem;
+  }
+
+  .customer-directory-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .customer-directory-label {
+    display: block;
+    color: #6c7683;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .customer-directory-field strong {
+    display: block;
+    color: #1f2a37;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .customer-directory-links {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 1rem;
+  }
+
+  .customer-link-card {
+    text-decoration: none;
+    border: 1px solid #e7edf7;
+    border-radius: 16px;
+    background: #f8fbff;
+    padding: 0.9rem 1rem;
+    display: grid;
+    gap: 0.3rem;
+    color: #1f2a37;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .customer-link-card:hover {
+    border-color: #bfd4ff;
+    box-shadow: 0 10px 24px rgba(13, 110, 253, 0.08);
+    transform: translateY(-1px);
+    color: #1f2a37;
+  }
+
+  .customer-link-label {
+    color: #6c7683;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .customer-directory-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .customer-directory-actions form {
+    margin: 0;
+  }
+
+  .customers-empty {
+    border: 1px dashed #d8e0eb;
+    border-radius: 24px;
+    background: #fbfcfe;
+    text-align: center;
+    padding: 2rem 1.25rem;
+    color: #6c757d;
+  }
+
+  @media (max-width: 991.98px) {
+    .customers-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .customer-directory-grid,
+    .customer-directory-links {
+      grid-template-columns: 1fr;
+    }
+
+    .customer-directory-field-wide {
+      grid-column: auto;
+    }
+
+    .customer-directory-actions .btn,
+    .customer-directory-actions form {
+      width: 100%;
+    }
+
+    .customer-directory-actions form .btn {
+      width: 100%;
+    }
+  }
+</style>
+{% endblock %}

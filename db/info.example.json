@@ -1,0 +1,89 @@
+{
+  "_comment": "Sample info.json. Copy this to db/info.json (or let the onboarding wizard create one for you) and fill in the values for your own business. Anything you leave blank will fall back to sensible defaults.",
+  "created_on": "01 January 2025",
+  "app_name": "Bill Generator",
+  "version": "4.5.1",
+  "last_updated": "01 January 2025",
+  "onboarding_complete": false,
+  "data": {
+    "business": {
+      "name": "Your Business Name",
+      "tagline": "",
+      "owner": "",
+      "address": "",
+      "email": "",
+      "phone": "",
+      "gstin": "",
+      "upi_id": "",
+      "upi_name": "",
+      "businessType": "",
+      "pan": "",
+      "estd": "2025",
+      "logo_path": "static/img/brand-water-mark-blue.svg",
+      "logo_color_mode": "blue"
+    },
+    "bank": {
+      "account_name": "",
+      "bank_name": "",
+      "branch": "",
+      "account_number": "",
+      "ifsc": "",
+      "bhim": ""
+    },
+    "appearance": {
+      "currency_symbol": "\\u20b9",
+      "date_format": "%d %B %Y",
+      "font_family": "Inter, Helvetica, Arial, sans-serif",
+      "theme_color": "#0056b3",
+      "currency_display": "symbol"
+    },
+    "payment": {
+      "methods": ["Bank Transfer", "UPI"],
+      "upi_qr_enabled": true,
+      "qr_label": "Scan to Pay",
+      "terms": [
+        "Payment due within 7 days of invoice date.",
+        "Late payments may incur a 2% interest per month.",
+        "This is a computer-generated document, no signature required."
+      ]
+    },
+    "statement": {
+      "header_title": "Statement Summary",
+      "disclaimer": "This is a system-generated statement. No signature required."
+    },
+    "account_defaults": {
+      "start_date": "2025-01-01T00:00:00Z",
+      "timezone": "Asia/Kolkata"
+    },
+    "meta": {
+      "version": "4.5.1",
+      "created_on": "2025-01-01T00:00:00Z"
+    },
+    "upi_info": {
+      "upi_id": "",
+      "currency": "INR",
+      "upi_name": ""
+    },
+    "services": [],
+    "bill_config": {
+      "heading": "Tax Invoice",
+      "footer": "",
+      "payment-footer": "Computer generated receipt - Signature not required",
+      "dues-table-position": "below_totals",
+      "dues-table-heading": "All Past Dues",
+      "invoice_prefix": "INV"
+    },
+    "file_location": "",
+    "supabase": {
+      "url": "",
+      "key": "",
+      "last_uploaded": "",
+      "last_incremental_uploaded": "",
+      "instant_uploads": false
+    },
+    "invoice_visual": {
+      "to_color_mode": "black",
+      "to_color_custom": ""
+    }
+  }
+}

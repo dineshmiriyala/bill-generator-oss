@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+{% set hide_navbar = True %}
+
+{% block content %}
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  }
+  .hub-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3.5rem 1.5rem;
+  }
+  .hub-container {
+    width: min(1080px, 100%);
+  }
+  .hub-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .hub-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1.1rem;
+    border-radius: 999px;
+    background: rgba(24, 31, 52, 0.88);
+    color: #f8fafc;
+    text-decoration: none;
+    font-weight: 550;
+    font-size: 0.95rem;
+    box-shadow: 0 10px 26px rgba(15, 23, 42, 0.22);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .hub-home:hover,
+  .hub-home:focus {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.32);
+    outline: none;
+  }
+  .hub-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .hub-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 520;
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
+    backdrop-filter: blur(8px);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+  .hub-chip.highlight {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+    transform: translateY(-2px);
+  }
+  .hub-title {
+    font-size: clamp(2rem, 2.3vw, 2.6rem);
+    font-weight: 650;
+    color: #1c1f26;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.4rem;
+    text-align: center;
+  }
+  .hub-tagline {
+    text-align: center;
+    font-size: 1.02rem;
+    color: #667085;
+    margin-bottom: 2.2rem;
+  }
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  .hub-card {
+    background: rgba(255, 255, 255, 0.94);
+    border-radius: 22px;
+    padding: 1.7rem 1.6rem;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: between;
+    min-height: 280px;
+  }
+  .hub-card h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 1rem;
+  }
+  .hub-card p {
+    margin-bottom: 1rem;
+    color: #6b7280;
+    font-size: 0.94rem;
+  }
+  .hub-card-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  .hub-btn,
+  .hub-btn-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    color: #111827;
+    text-decoration: none;
+    font-weight: 550;
+    font-size: 0.95rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .hub-btn:hover,
+  .hub-btn-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+  }
+  .hub-btn-submit {
+    width: 100%;
+    border: none;
+    background: #111827;
+    color: #f8fafc;
+    cursor: pointer;
+  }
+  .hub-btn-submit.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .hub-note {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: #94a3b8;
+  }
+  .sync-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1060;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease;
+  }
+  .sync-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+  .sync-modal {
+    background: #fff;
+    border-radius: 18px;
+    padding: 32px;
+    text-align: center;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.2);
+    position: relative;
+  }
+  .sync-spinner {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 4px solid rgba(99, 102, 241, 0.15);
+    border-top-color: #6366f1;
+    margin: 0 auto 12px auto;
+    animation: spin 1s linear infinite;
+  }
+  .sync-progress-circle {
+    width: 96px;
+    height: 96px;
+    margin: 0 auto 12px auto;
+    border-radius: 50%;
+    background: conic-gradient(#d1d5db 0deg, #d1d5db 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sync-progress-value {
+    width: 78px;
+    height: 78px;
+    border-radius: 50%;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #1f2937;
+  }
+  .sync-overlay[data-state="ready"] .sync-spinner {
+    display: none;
+  }
+  .hub-footer {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-top: 2rem;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<div class="hub-wrapper">
+  <div class="hub-container">
+    <div class="hub-top">
+      <a href="{{ url_for('home') }}" class="hub-home">← Back to home</a>
+      <div class="hub-meta">
+        <span class="hub-chip highlight">Workspace</span>
+        <span class="hub-chip">Version {{ APP_INFO.get('version', '3.1') }}</span>
+      </div>
+    </div>
+
+    <h1 class="hub-title">Operations hub</h1>
+    <p class="hub-tagline">Minimal shortcuts to everything beyond billing—analytics, accounting, and resilient backups.</p>
+
+    <div class="hub-grid">
+      <section class="hub-card">
+        <h2>Daily workflows</h2>
+        <p>Keep day-to-day tasks within reach.</p>
+        <div class="hub-card-actions">
+          <a href="{{ url_for('select_customer') }}" class="hub-btn">🧾 Create invoice</a>
+          <a href="{{ url_for('view_bills') }}" class="hub-btn">📚 View bills</a>
+          <a href="{{ url_for('view_customers') }}" class="hub-btn">👥 Customers</a>
+          <a href="{{ url_for('view_inventory') }}" class="hub-btn">📦 Inventory</a>
+        </div>
+      </section>
+
+      <section class="hub-card">
+        <h2>Analytics & tools</h2>
+        <p>Measure, manage, and render statements.</p>
+        <div class="hub-card-actions">
+          <a href="{{ url_for('analytics') }}" class="hub-btn">📈 Analytics dashboard</a>
+          <a href="{{ url_for('accounting_dashboard') }}" class="hub-btn">💰 Accounting</a>
+          <a href="{{ url_for('accounting_statement') }}" class="hub-btn">🏢 Company books</a>
+          <a href="{{ url_for('accounting_transactions_list') }}" class="hub-btn">📒 All transactions</a>
+          <a href="{{ url_for('qr_code') }}" class="hub-btn">💳 Generate UPI QR</a>
+          <a href="{{ url_for('recover_page') }}" class="hub-btn">🔄 Data recovery</a>
+          <a href="{{ url_for('config') }}" class="hub-btn">⚙️ Account settings</a>
+        </div>
+      </section>
+
+      <section class="hub-card">
+        <h2>Backup & sync</h2>
+        <p>Mirror data locally and upstream.</p>
+        <div class="hub-card-actions">
+          <button type="button" id="incrementalSyncBtn" class="hub-btn-submit">☁️ Quick cloud sync</button>
+          <form id="supabaseSyncForm" action="{{ url_for('supabase_sync_all') }}" method="post">
+            <button type="submit" class="hub-btn-submit">☁️ Upload all data</button>
+          </form>
+          <form action="{{ url_for('create_local_backup_copy') }}" method="post">
+            <button type="submit"
+                    class="hub-btn-submit{% if not has_backup_location %} disabled{% endif %}"
+                    {% if not has_backup_location %}disabled{% endif %}>📁 Mirror DB externally</button>
+          </form>
+          <form action="{{ url_for('create_backup_snapshot') }}" method="post">
+            <button type="submit" class="hub-btn-submit">💾 Create snapshot</button>
+          </form>
+          {% if not has_backup_location %}
+            <p class="hub-note">Set a backup folder in Account Settings to enable mirroring.</p>
+          {% endif %}
+        </div>
+      </section>
+    </div>
+
+    <p class="hub-footer">{{ APP_NAME }} · Local-first billing toolkit</p>
+  </div>
+</div>
+
+<div id="supabaseSyncOverlay" class="sync-overlay" aria-live="polite" hidden data-state="loading">
+  <div class="sync-modal">
+    <button type="button" class="btn-close position-absolute top-0 end-0 m-2" aria-label="Close" id="fullSyncClose" style="display:none;"></button>
+    <div class="sync-spinner" role="presentation"></div>
+    <p class="sync-status" id="fullSyncStatus">Preparing upload…</p>
+    <p class="sync-subtext" id="fullSyncSubtext">Sit tight while we package your data for Supabase.</p>
+    <pre id="fullSyncLog" style="text-align:left; background:#f5f5f5; border-radius:12px; padding:12px; margin-top:12px; max-height:180px; overflow:auto; display:none;"></pre>
+  </div>
+</div>
+
+<div class="modal fade" id="quickSyncModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-4 text-center position-relative">
+      <button type="button" class="btn-close position-absolute top-0 end-0 m-3" data-bs-dismiss="modal" aria-label="Close"></button>
+      <div class="sync-progress-circle" id="quickSyncProgressCircle">
+        <div class="sync-progress-value" id="quickSyncProgressValue">0%</div>
+      </div>
+      <p class="mb-0" id="quickSyncStatus">Waiting to start…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const syncForm = document.getElementById('supabaseSyncForm');
+    const overlay = document.getElementById('supabaseSyncOverlay');
+    const statusLabel = overlay ? overlay.querySelector('.sync-status') : null;
+    const subtext = document.getElementById('fullSyncSubtext');
+    const logBox = document.getElementById('fullSyncLog');
+    const closeBtn = document.getElementById('fullSyncClose');
+    if (syncForm && overlay && statusLabel && logBox && closeBtn && window.fetch) {
+      const submitButton = syncForm.querySelector('button[type="submit"]');
+      const resetOverlay = () => {
+        overlay.classList.remove('visible');
+        overlay.setAttribute('hidden', '');
+        overlay.dataset.state = 'loading';
+        statusLabel.textContent = 'Preparing upload…';
+        if (subtext) subtext.textContent = 'Sit tight while we package your data for Supabase.';
+        logBox.textContent = '';
+        logBox.style.display = 'none';
+        closeBtn.style.display = 'none';
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.classList.remove('disabled');
+        }
+      };
+      closeBtn.addEventListener('click', resetOverlay);
+
+      syncForm.addEventListener('submit', function(evt) {
+        evt.preventDefault();
+        overlay.dataset.state = 'loading';
+        overlay.classList.add('visible');
+        overlay.removeAttribute('hidden');
+        statusLabel.textContent = 'Uploading data to Supabase…';
+        if (subtext) subtext.textContent = 'This may take a few minutes.';
+        logBox.textContent = '';
+        logBox.style.display = 'none';
+        closeBtn.style.display = 'none';
+        if (submitButton) {
+          submitButton.disabled = true;
+          submitButton.classList.add('disabled');
+        }
+
+        fetch(syncForm.action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(async response => {
+          let data;
+          try {
+            data = await response.json();
+          } catch (err) {
+            data = { status: 'error', message: 'Unexpected server response.' };
+          }
+          return { ok: response.ok, data };
+        })
+        .then(({ ok, data }) => {
+          overlay.dataset.state = 'ready';
+          const isSuccess = ok && data.status === 'success';
+          statusLabel.textContent = data.message || (isSuccess ? 'Upload complete.' : 'Upload failed.');
+          if (subtext) {
+            subtext.textContent = isSuccess
+              ? 'Review the summary below and close when you are ready.'
+              : 'Please review the error details below.';
+          }
+          const details = data.details || `Uploaded: ${data.uploaded ?? 'n/a'} • Failed: ${data.failed ?? 'n/a'}`;
+          logBox.textContent = details;
+          logBox.style.display = 'block';
+          closeBtn.style.display = 'inline-flex';
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.classList.remove('disabled');
+          }
+        })
+        .catch(() => {
+          overlay.dataset.state = 'ready';
+          statusLabel.textContent = 'Upload failed.';
+          if (subtext) subtext.textContent = 'Unable to reach Supabase. Please try again.';
+          logBox.textContent = '';
+          logBox.style.display = 'none';
+          closeBtn.style.display = 'inline-flex';
+          if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.classList.remove('disabled');
+          }
+        });
+      });
+    }
+
+    const incrementalBtn = document.getElementById('incrementalSyncBtn');
+    const quickSyncModalEl = document.getElementById('quickSyncModal');
+    const quickSyncModal = quickSyncModalEl ? new bootstrap.Modal(quickSyncModalEl) : null;
+    const progressCircle = document.getElementById('quickSyncProgressCircle');
+    const progressValue = document.getElementById('quickSyncProgressValue');
+    const progressStatus = document.getElementById('quickSyncStatus');
+    if (incrementalBtn && quickSyncModal && progressCircle && progressValue && progressStatus) {
+      let quickSyncInterval = null;
+      incrementalBtn.addEventListener('click', function() {
+        quickSyncModal.show();
+        incrementalBtn.disabled = true;
+        incrementalBtn.classList.add('disabled');
+        progressStatus.textContent = 'Uploading incremental changes… This may take up to a minute.';
+        progressValue.textContent = '0%';
+        let progress = 0;
+
+        quickSyncInterval = setInterval(() => {
+          if (progress < 90) {
+            progress += 5;
+          }
+          const degrees = (progress / 100) * 360;
+          progressCircle.style.background = `conic-gradient(#6366f1 ${degrees}deg, #d1d5db ${degrees}deg)`;
+          progressValue.textContent = `${progress}%`;
+        }, 200);
+
+        fetch('{{ url_for("supabase_sync_incremental") }}', {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(async response => {
+          const data = await response.json();
+          clearInterval(quickSyncInterval);
+          progressCircle.style.background = 'conic-gradient(#22c55e 360deg, #22c55e 360deg)';
+          progressValue.textContent = '100%';
+          progressStatus.textContent = data.message || 'Sync complete';
+          setTimeout(() => {
+            quickSyncModal.hide();
+            incrementalBtn.disabled = false;
+            incrementalBtn.classList.remove('disabled');
+            progressCircle.style.background = 'conic-gradient(#d1d5db 0deg, #d1d5db 360deg)';
+          }, 1500);
+        })
+        .catch(() => {
+          clearInterval(quickSyncInterval);
+          progressCircle.style.background = 'conic-gradient(#f97316 360deg, #f97316 360deg)';
+          progressValue.textContent = '!';
+          progressStatus.textContent = 'Unable to sync. Please try again.';
+          setTimeout(() => {
+            quickSyncModal.hide();
+            incrementalBtn.disabled = false;
+            incrementalBtn.classList.remove('disabled');
+            progressCircle.style.background = 'conic-gradient(#d1d5db 0deg, #d1d5db 360deg)';
+          }, 1500);
+        });
+      });
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,435 @@
+{% extends 'base.html' %}
+{% set hide_navbar = True %}
+
+{% block content %}
+<style>
+  /* full viewport, no scroll unless needed */
+  body, html {
+    height: 100%;
+    margin: 0;
+    background: #f5f5f7;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #1d1d1f;
+  }
+  .onboard-wrapper {
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem;
+    box-sizing: border-box;
+  }
+  .form-box {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    width: 100%;
+    max-width: 480px;
+    padding: 3rem 2.5rem;
+    box-sizing: border-box;
+  }
+  .form-box h3 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 1.75rem;
+    color: #1d1d1f;
+    text-align: center;
+  }
+  .form-box p {
+    margin-bottom: 2rem;
+    color: #6e6e73;
+    font-size: 1rem;
+    text-align: center;
+    font-weight: 400;
+  }
+  .progress-header {
+    margin-bottom: 2rem;
+  }
+  #progress-step {
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #6e6e73;
+    text-align: center;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .progress {
+    height: 4px;
+    background: #d1d1d6;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #progress-bar {
+    height: 4px;
+    background: #0071e3;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+  .form-label {
+    display: block;
+    font-weight: 500;
+    font-size: 0.875rem;
+    color: #3c3c4399;
+    margin-bottom: 6px;
+  }
+  .form-control {
+    width: 100%;
+    border: 1px solid #c7c7cc;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-weight: 400;
+    color: #1d1d1f;
+    background: #fafafa;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .form-control:focus {
+    outline: none;
+    border-color: #0071e3;
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+    background: #fff;
+  }
+  .form-control.is-invalid {
+    border-color: #ff3b30;
+  }
+  textarea.form-control {
+    resize: vertical;
+    min-height: 56px;
+  }
+  .btn-start {
+    display: inline-block;
+    width: 100%;
+    padding: 0.75rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    background: #e5e5ea;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: background-color 0.25s ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .btn-start:hover {
+    background: #d2d2d7;
+  }
+  .btn-start:active {
+    background: #c7c7cc;
+  }
+  .btn-start:focus-visible {
+    outline: 2px solid #0071e3;
+    outline-offset: 2px;
+  }
+  /* Back button style */
+  .btn-back {
+    background: transparent;
+    color: #0071e3;
+    font-weight: 600;
+    border-radius: 16px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.25s ease;
+  }
+  .btn-back:hover {
+    background: #e5e5ea;
+  }
+  .btn-back:active {
+    background: #d2d2d7;
+  }
+  .btn-back:focus-visible {
+    outline: 2px solid #0071e3;
+    outline-offset: 2px;
+  }
+  @media (max-width: 768px) {
+    .onboard-wrapper {
+      padding: 1rem 1.5rem;
+    }
+    .form-box {
+      padding: 2.5rem 1.5rem;
+      border-radius: 20px;
+    }
+  }
+
+  .onboard-stage {
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease;
+      display: none;
+  }
+  .onboard-stage.active {
+      opacity: 1;
+      transform: translateY(0);
+      display: block;
+  }
+  .form-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+  .form-actions .btn-start {
+    flex: 1;
+  }
+</style>
+
+<div class="onboard-wrapper" role="main" aria-label="Onboarding form">
+  <div class="form-box" role="form" aria-labelledby="onboard-title">
+    <div class="progress-header text-center mb-4" aria-live="polite" aria-atomic="true">
+        <span id="progress-step">Welcome</span>
+        <div class="progress" aria-hidden="true">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+    </div>
+
+    <!-- Stage 0: Welcome Screen -->
+    <div id="stage-0" class="onboard-stage active" aria-label="Welcome screen">
+      <h3>Welcome to BillZen</h3>
+      <p>Thank you for joining us</p>
+      <p>Let’s begin your first step in setting up your business.</p>
+      <div class="form-actions" style="margin-top: 2rem;">
+        <button type="button" class="btn-start" id="start-onboarding" aria-label="Get Started with onboarding">Get Started</button>
+      </div>
+    </div>
+
+    <h3 id="onboard-title" hidden>Get Started</h3>
+    <p hidden>Enter your business details to continue.</p>
+
+    <form id="onboardForm" action="{{ url_for('onboarding_submit') }}" method="POST" autocomplete="off" novalidate>
+      <!-- Stage 1: Business Name -->
+      <div id="stage-1" class="onboard-stage">
+        <div>
+          <label for="business_name" class="form-label">Business Name</label>
+          <input type="text" id="business_name" name="business_name" class="form-control" placeholder="e.g. ABC Enterprises" required aria-required="true" aria-describedby="business_name_error" />
+          <span id="business_name_error" class="sr-only" role="alert"></span>
+        </div>
+        <div class="form-actions" style="margin-top: 2rem;">
+          <button type="button" class="btn-start" id="next-1" aria-label="Next step: Owner and Contact">Next</button>
+        </div>
+      </div>
+      <!-- Stage 2: Owner & Phone -->
+      <div id="stage-2" class="onboard-stage">
+        <div>
+          <label for="owner_name" class="form-label">Owner / Contact</label>
+          <input type="text" id="owner_name" name="owner_name" class="form-control" placeholder="Your name" required aria-required="true" aria-describedby="owner_name_error" />
+          <span id="owner_name_error" class="sr-only" role="alert"></span>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="phone" class="form-label">Phone Number</label>
+          <input type="tel" id="phone" name="phone" class="form-control" placeholder="9876543210" required aria-required="true" aria-describedby="phone_error" />
+          <span id="phone_error" class="sr-only" role="alert"></span>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-back" id="back-2" aria-label="Previous step: Business Name">Back</button>
+          <button type="button" class="btn-start" id="next-2" aria-label="Next step: Additional Details">Next</button>
+        </div>
+      </div>
+      <!-- Stage 3: Email, Address, UPI, GSTIN, Business Type, PAN -->
+      <div id="stage-3" class="onboard-stage">
+        <div>
+          <label for="email" class="form-label">Email (optional)</label>
+          <input type="email" id="email" name="email" class="form-control" placeholder="you@business.com" aria-describedby="email_help" />
+          <span id="email_help" class="sr-only">Optional</span>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="address" class="form-label">Address</label>
+          <textarea id="address" name="address" rows="2" class="form-control" placeholder="Street, City, ZIP"></textarea>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="upi_id" class="form-label">UPI ID</label>
+          <input type="text" id="upi_id" name="upi_id" class="form-control" placeholder="example@bank" />
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="gstin" class="form-label">GSTIN (if applicable)</label>
+          <input type="text" id="gstin" name="gstin" class="form-control" placeholder="22AAAAA0000A1Z5" />
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="business_type" class="form-label">Business Type</label>
+          <select id="business_type" name="business_type" class="form-control" aria-describedby="business_type_help">
+            <option value="" selected disabled>Select Business Type</option>
+            <option value="Composition">Composition</option>
+            <option value="Regular">Regular</option>
+            <option value="Casual Taxable">Casual Taxable</option>
+            <option value="Input Service Distributor">Input Service Distributor</option>
+            <option value="Non-Resident Taxable">Non-Resident Taxable</option>
+            <option value="E-Commerce Operator">E-Commerce Operator</option>
+          </select>
+          <span id="business_type_help" class="sr-only">Select your business type</span>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="pan" class="form-label">PAN</label>
+          <input type="text" id="pan" name="pan" class="form-control" placeholder="ABCDE1234F" maxlength="10" />
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-back" id="back-3" aria-label="Previous step: Owner and Contact">Back</button>
+          <button type="button" class="btn-start" id="next-3" aria-label="Next step: Bank Account Details">Next</button>
+        </div>
+      </div>
+      <!-- Stage 4: Bank Account Details -->
+      <div id="stage-4" class="onboard-stage">
+        <div>
+          <label for="bank_account_number" class="form-label">Bank Account Number</label>
+          <input type="text" id="bank_account_number" name="bank_account_number" class="form-control" placeholder="1234567890" aria-describedby="bank_account_number_error" />
+          <span id="bank_account_number_error" class="sr-only" role="alert"></span>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="confirm_bank_account_number" class="form-label">Confirm Bank Account Number</label>
+          <input type="text" id="confirm_bank_account_number" name="confirm_bank_account_number" class="form-control" placeholder="1234567890" aria-describedby="confirm_bank_account_number_error" />
+          <span id="confirm_bank_account_number_error" class="sr-only" role="alert"></span>
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="ifsc_code" class="form-label">IFSC Code</label>
+          <input type="text" id="ifsc_code" name="ifsc_code" class="form-control" placeholder="ABCD0123456" />
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="account_holder_name" class="form-label">Account Holder Name</label>
+          <input type="text" id="account_holder_name" name="account_holder_name" class="form-control" placeholder="Name on Account" />
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="branch_name" class="form-label">Branch Name</label>
+          <input type="text" id="branch_name" name="branch_name" class="form-control" placeholder="Branch Name" />
+        </div>
+        <div style="margin-top: 1rem;">
+          <label for="bank_name" class="form-label">Bank Name</label>
+          <input type="text" id="bank_name" name="bank_name" class="form-control" placeholder="Bank Name" />
+        </div>
+        <!-- Hidden input for skip_bank flag -->
+        <input type="hidden" id="skip_bank" name="skip_bank" value="false">
+        <div class="form-actions">
+          <button type="button" class="btn-back" id="back-4" aria-label="Previous step: Additional Details">Back</button>
+          <button type="submit" class="btn-start" aria-label="Save and continue">Save &amp; Continue</button>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-back" id="skip-4" aria-label="Skip and Add Later">Skip and Add Later</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// Multi-step onboarding JS
+document.addEventListener('DOMContentLoaded', function() {
+  const stages = [
+    document.getElementById('stage-0'),
+    document.getElementById('stage-1'),
+    document.getElementById('stage-2'),
+    document.getElementById('stage-3'),
+    document.getElementById('stage-4')
+  ];
+  let current = 0;
+
+  const progressStep = document.getElementById('progress-step');
+  const progressBar = document.getElementById('progress-bar');
+  function updateProgress(step) {
+    if (step === 0) {
+      progressStep.textContent = 'Welcome';
+      progressBar.style.width = '0%';
+    } else {
+      progressStep.textContent = `Step ${step} of 4`;
+      progressBar.style.width = `${(step) * 25}%`;
+    }
+  }
+
+  function showStage(idx) {
+    stages.forEach((s, i) => {
+      s.classList.toggle('active', i === idx);
+    });
+    // Focus the first input of the current stage if not stage 0
+    if (idx > 0) {
+      const firstInput = stages[idx].querySelector('input, textarea, select');
+      if (firstInput) setTimeout(() => firstInput.focus(), 120);
+    }
+    updateProgress(idx);
+  }
+
+  // Start onboarding from welcome screen
+  document.getElementById('start-onboarding').onclick = function() {
+    current = 1; showStage(current);
+  };
+
+  // Next from stage 1
+  document.getElementById('next-1').onclick = function() {
+    // Validate business_name
+    const bn = document.getElementById('business_name');
+    const errorSpan = document.getElementById('business_name_error');
+    if (!bn.value.trim()) {
+      bn.focus();
+      bn.classList.add('is-invalid');
+      errorSpan.textContent = 'Business name is required.';
+      return;
+    } else {
+      bn.classList.remove('is-invalid');
+      errorSpan.textContent = '';
+    }
+    current = 2; showStage(current);
+  };
+  // Next from stage 2
+  document.getElementById('next-2').onclick = function() {
+    const owner = document.getElementById('owner_name');
+    const phone = document.getElementById('phone');
+    const ownerError = document.getElementById('owner_name_error');
+    const phoneError = document.getElementById('phone_error');
+    let valid = true;
+    if (!owner.value.trim()) {
+      owner.focus();
+      owner.classList.add('is-invalid');
+      ownerError.textContent = 'Owner name is required.';
+      valid = false;
+    } else {
+      owner.classList.remove('is-invalid');
+      ownerError.textContent = '';
+    }
+    if (!phone.value.trim()) {
+      if (valid) phone.focus();
+      phone.classList.add('is-invalid');
+      phoneError.textContent = 'Phone number is required.';
+      valid = false;
+    } else {
+      phone.classList.remove('is-invalid');
+      phoneError.textContent = '';
+    }
+    if (!valid) return;
+    current = 3; showStage(current);
+  };
+  // Next from stage 3
+  document.getElementById('next-3').onclick = function() {
+    // No required validation on optional fields, so just proceed
+    current = 4; showStage(current);
+  };
+  // Back buttons
+  document.getElementById('back-2').onclick = function() {
+    current = 1; showStage(current);
+  };
+  document.getElementById('back-3').onclick = function() {
+    current = 2; showStage(current);
+  };
+  document.getElementById('back-4').onclick = function() {
+    current = 3; showStage(current);
+  };
+  // Skip button on stage 4
+  document.getElementById('skip-4').onclick = function() {
+    document.getElementById('skip_bank').value = 'true';
+    document.getElementById('onboardForm').submit();
+  };
+  // Prevent scroll
+  document.body.style.overflow = 'hidden';
+  // Optional: prevent enter key from submitting early
+  document.getElementById('onboardForm').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      // Only allow submit on last stage
+      if (current < 4) e.preventDefault();
+    }
+  });
+  // For accessibility, remove is-invalid on input
+  document.querySelectorAll('.form-control').forEach(function(el) {
+    el.addEventListener('input', function() {
+      el.classList.remove('is-invalid');
+      const errorId = el.id + '_error';
+      const errorSpan = document.getElementById(errorId);
+      if (errorSpan) errorSpan.textContent = '';
+    });
+  });
+});
+</script>
+{% endblock %}

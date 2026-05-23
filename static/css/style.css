@@ -1,0 +1,96 @@
+footer small{
+    color: grey;
+    font-size: 0.9rem;
+}
+
+/* Minimalist button style */
+.custom-btn {
+    display: inline-block;
+    width: 250px; /* 👈 Fixed width for all buttons */
+    padding: 12px 24px;
+    border: 2px solid #555;
+    color: #333;
+    background-color: transparent;
+    text-decoration: none;
+    font-size: 1.2rem;
+    text-align: center; /* 👈 Center text inside button */
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.custom-btn:hover {
+    background-color: #333;
+    color: white;
+    border-color: #333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* font style: inspired by native apple mac */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.bg-light-gray {
+    background-color: #323233; /* Light gray background */
+    height: 100%;
+}
+
+/* Animation for right side content */
+.content-wrapper {
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeInUp 1s ease-out forwards;
+}
+
+/* Define the keyframes */
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.small-btn {
+    width: 200px;
+    font-size: 1rem;
+    padding: 8px 16px;
+    align-self: center; /* Center small buttons horizontally */
+}
+
+/* Smooth collapse animation */
+.collapse:not(.show) {
+    display: block;
+    height: 0;
+    overflow: hidden;
+    transition: height 0.5s ease;
+}
+
+.collapse.show {
+    height: auto;
+    transition: height 0.5s ease;
+}
+
+/* Print-specific rules */
+@media print {
+    .d-print-none,
+    .no-print {
+        display: none !important;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+    }
+
+    .table th, .table td {
+        padding: 6px;
+        font-size: 11px;
+    }
+
+    .container {
+        width: 100%;
+        padding: 0;
+    }
+}

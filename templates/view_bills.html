@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <h2 class="text-center fw-semibold mb-4" style="color:#222;">View All Bills</h2>
+
+  <!-- Filters -->
+  <form id="billsFilterForm" method="GET" action="{{ url_for('view_bills') }}" class="mx-auto mb-5" style="max-width: 900px;">
+    <div class="filter-bar bg-white rounded-4 shadow-sm">
+      <div class="filter-inputs d-flex flex-wrap align-items-center justify-content-center gap-3 w-100">
+        <input type="text" name="q" class="form-control filter-input" placeholder="Search by invoice, phone/ID, name or company" value="{{ request.args.get('q', '') }}">
+        <input type="date" name="start_date" class="form-control filter-input" value="{{ request.args.get('start_date', '') }}">
+        <input type="date" name="end_date" class="form-control filter-input" value="{{ request.args.get('end_date', '') }}">
+        <select name="sort" class="form-select filter-input">
+          <option value="date" {{ 'selected' if request.args.get('sort','date') == 'date' else '' }}>Date</option>
+          <option value="total" {{ 'selected' if request.args.get('sort') == 'total' else '' }}>Total</option>
+          <option value="invoice" {{ 'selected' if request.args.get('sort') == 'invoice' else '' }}>Invoice</option>
+          <option value="customer" {{ 'selected' if request.args.get('sort') == 'customer' else '' }}>Customer</option>
+        </select>
+        <select name="dir" class="form-select filter-input">
+          <option value="desc" {{ 'selected' if request.args.get('dir','desc') == 'desc' else '' }}>Desc</option>
+          <option value="asc" {{ 'selected' if request.args.get('dir') == 'asc' else '' }}>Asc</option>
+        </select>
+      </div>
+      <div class="filter-buttons-row d-flex justify-content-center gap-3 mt-3">
+        <button type="submit" class="btn btn-primary filter-btn">Search</button>
+        <a href="{{ url_for('view_bills') }}" class="btn btn-outline-primary filter-btn">Clear</a>
+      </div>
+    </div>
+  </form>
+
+  {% if bills %}
+  <div class="card shadow-sm rounded-4 border-0" style="background:#fff;">
+    <div class="table-responsive" style="overflow-x:auto;">
+      <table class="table align-middle mb-0" style="border-collapse: separate; border-spacing: 0 0.75rem; color:#222;">
+        <thead>
+          <tr style="border-bottom: 1px solid #e6e6e6;">
+            <th class="fw-semibold" style="width:140px;">Invoice No</th>
+            <th class="fw-semibold" style="width:130px;">Date</th>
+            <th class="fw-semibold">Customer</th>
+            <th class="fw-semibold text-end" style="width:120px;">Total (INR)</th>
+            <th class="fw-semibold text-center" style="width:110px;">Items</th>
+            <th class="fw-semibold text-center" style="width:140px;">Mark Paid</th>
+            <th class="fw-semibold text-center" style="width:90px;">View</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bill in bills %}
+          <tr class="align-middle bg-white rounded-3 shadow-sm" style="box-shadow: 0 1px 4px rgb(0 0 0 / 0.05); margin-bottom: 0.75rem;">
+            <td class="fw-semibold" style="vertical-align: middle; white-space: nowrap;">{{ bill.invoice_no }}</td>
+            <td style="color:#666; white-space: nowrap;">{{ bill.date | datetimeformat }}</td>
+            <td>
+              <div class="fw-semibold" style="color:#222;">{{ bill.customer_company or bill.company or '—' }}</div>
+              {% if bill.customer_name %}<div class="small" style="color:#666;">{{ bill.customer_name }}</div>{% endif %}
+            </td>
+            <td class="text-end fw-semibold" style="white-space: nowrap;">{{ bill.total }}</td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-items rounded-pill shadow-none" data-invoice="{{ bill.invoice_no }}" style="background: linear-gradient(135deg, #007aff, #0056d6); color: #fff; border:none; font-weight:600; padding: 0.25rem 1rem; font-size:0.9rem; user-select:none; transition: background 0.3s ease;">
+                View Items
+              </button>
+            </td>
+            <td class="text-center">
+              {% if bill.is_paid %}
+                <span class="badge bg-success-subtle text-success fw-semibold px-3 py-2 rounded-pill d-inline-flex align-items-center justify-content-center gap-1">
+                  ✓ Paid
+                </span>
+              {% else %}
+                <form method="POST" action="{{ url_for('mark_bill_paid', invoice_no=bill.invoice_no) }}" class="d-inline">
+                  <input type="hidden" name="source" value="view_bills">
+                  <input type="hidden" name="next" value="{{ mark_paid_redirect }}">
+                  <button type="submit" class="btn btn-sm btn-success rounded-pill shadow-none fw-semibold px-3">
+                    Mark as Paid
+                  </button>
+                </form>
+              {% endif %}
+            </td>
+            <td class="text-center" style="white-space: nowrap;">
+              <a href="{{ url_for('view_bill_locked', invoicenumber=bill.invoice_no) }}" class="text-primary fw-semibold text-decoration-none" style="font-size:0.95rem; user-select:none;">View →</a>
+            </td>
+          </tr>
+          <tr class="items-row" id="items-row-{{ bill.invoice_no }}" style="display:none;">
+            <td colspan="7" class="p-3 bg-light rounded-3" style="background:#f8f9fa;">
+              <div class="table-responsive" style="overflow-x:auto;">
+                <table class="table table-sm mb-0" style="color:#666;">
+                  <thead>
+                    <tr>
+                      <th style="width:50%;">Item</th>
+                      <th class="text-center" style="width:15%;">Qty</th>
+                      <th class="text-center" style="width:15%;">Rate (INR)</th>
+                      <th class="text-end" style="width:20%;">Amount (INR)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="items-body-{{ bill.invoice_no }}">
+                    <tr><td colspan="4" class="text-center text-muted py-3">Click 'View Items' to load items…</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+    <p class="text-center text-muted mt-4" style="color:#666;">No bills found.</p>
+  {% endif %}
+</div>
+
+<style>
+/* Apple-style minimal filter bar */
+.filter-bar {
+  backdrop-filter: saturate(180%) blur(20px);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-x: visible;
+}
+
+.filter-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.filter-buttons-row {
+  width: 100%;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.filter-input {
+  border: 1px solid #dcdcdc;
+  background: #f8f8f8;
+  border-radius: 12px;
+  height: 44px;
+  padding: 0 1rem;
+  color: #111;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  flex: 1 1 130px;
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.filter-input:focus {
+  border-color: #007aff;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(0,122,255,0.12);
+  outline: none;
+}
+
+.filter-input:hover {
+  background: #f0f1f2;
+}
+
+.filter-btn {
+  height: 44px;
+  font-size: 0.95rem;
+  border-radius: 22px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: all 0.25s ease;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 140px;
+}
+
+.filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,122,255,0.15);
+}
+
+.btn-primary.filter-btn {
+  background: linear-gradient(135deg, #007aff, #0056d6);
+  border: none;
+  color: #fff;
+}
+
+.btn-outline-primary.filter-btn {
+  border: 2px solid #007aff;
+  color: #007aff;
+  background: transparent;
+}
+
+.btn-outline-primary.filter-btn:hover {
+  background: #007aff;
+  color: #fff;
+}
+
+/* Scrollbar hidden for table container */
+.table-responsive::-webkit-scrollbar {
+  height: 6px;
+}
+.table-responsive::-webkit-scrollbar-track {
+  background: transparent;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.1);
+  border-radius: 3px;
+}
+
+/* Table rows spacing */
+table.table tbody tr {
+  transition: background-color 0.3s ease;
+}
+table.table tbody tr:hover {
+  background-color: #f0f5ff;
+}
+
+/* Items row animation */
+.items-row {
+  transition: max-height 0.4s ease, opacity 0.4s ease;
+}
+
+/* Buttons for table */
+.btn-primary {
+  background: linear-gradient(135deg, #007aff, #0056d6);
+  border: none;
+  color: #fff;
+  transition: background 0.3s ease;
+  height: 44px;
+  font-size: 1rem;
+}
+.btn-primary:hover,
+.btn-items:hover {
+  background: linear-gradient(135deg, #0056d6, #003bb5);
+  color: #fff;
+}
+.btn-outline-primary {
+  border: 2px solid #007aff;
+  color: #007aff;
+  transition: background 0.3s ease, color 0.3s ease;
+  height: 44px;
+  font-size: 1rem;
+}
+.btn-outline-primary:hover {
+  background: #007aff;
+  color: #fff;
+}
+
+/* Responsive tweaks for table/buttons */
+@media (max-width: 767.98px) {
+  table.table thead tr th,
+  table.table tbody tr td {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+  }
+  .btn-items {
+    font-size: 0.85rem !important;
+    padding: 0.2rem 0.75rem !important;
+  }
+}
+
+/* Safari/Chrome consistency fix for inline elements to reduce unexpected wrapping */
+@supports (-webkit-appearance: none) {
+  .filter-bar, .filter-inputs {
+    white-space: normal;
+    flex-wrap: wrap;
+  }
+}
+</style>
+
+<script>
+  (function(){
+    const form = document.getElementById('billsFilterForm');
+    const sortSel = document.getElementById('sortSelect');
+    const dirSel  = document.getElementById('dirSelect');
+    if (form && sortSel) sortSel.addEventListener('change', () => form.submit());
+    if (form && dirSel)  dirSel.addEventListener('change',  () => form.submit());
+  })();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const loadedItems = new Set();
+
+    function createItemRow(item) {
+      const name = item.name ?? '';
+      const qty = item.quantity ?? '';
+      const rate = Number(item.rate || 0).toFixed(2);
+      const amount = Number(item.amount || 0).toFixed(2);
+      return `
+        <tr>
+          <td>${name}</td>
+          <td class="text-center">${qty}</td>
+          <td class="text-center">${rate}</td>
+          <td class="text-end">${amount}</td>
+        </tr>
+      `;
+    }
+
+    function loadItems(invoiceNo, button) {
+      if (!invoiceNo || loadedItems.has(invoiceNo)) return;
+
+      const tbody = document.getElementById(`items-body-${invoiceNo}`);
+      if (!tbody) return;
+
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr>';
+
+      fetch(`/api/bill_items/${encodeURIComponent(invoiceNo)}`)
+        .then(res => {
+          if (!res.ok) throw new Error(res.statusText);
+          return res.json();
+        })
+        .then(data => {
+          if (data && data.items && Array.isArray(data.items) && data.items.length) {
+            const rowsHtml = data.items.map(createItemRow).join('');
+            tbody.innerHTML = rowsHtml;
+          } else {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No items found.</td></tr>';
+          }
+          loadedItems.add(invoiceNo);
+          if (button) button.disabled = false;
+        })
+        .catch(() => {
+          tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Error loading items</td></tr>';
+          if (button) button.disabled = false;
+        });
+    }
+
+    function toggleItemsRow(invoiceNo, button) {
+      const row = document.getElementById(`items-row-${invoiceNo}`);
+      if (!row) return;
+
+      const isVisible = row.style.display === 'table-row';
+      if (isVisible) {
+        row.style.display = 'none';
+        button.textContent = 'View Items';
+      } else {
+        row.style.display = 'table-row';
+        button.textContent = 'Hide Items';
+        if (!loadedItems.has(invoiceNo)) {
+          button.disabled = true;
+          loadItems(invoiceNo, button);
+        }
+      }
+    }
+
+    document.querySelectorAll('.btn-items').forEach(button => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const invoiceNo = button.getAttribute('data-invoice');
+        toggleItemsRow(invoiceNo, button);
+      });
+    });
+  });
+</script>
+{% endblock %}

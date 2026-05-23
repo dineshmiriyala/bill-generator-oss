@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="customer-edit-shell">
+  <div class="customer-edit-hero">
+    <div>
+      <p class="customer-edit-eyebrow mb-1">Customer Setup</p>
+      <h2 class="fw-semibold mb-2">Edit Customer</h2>
+      <p class="text-muted mb-0">Update the shared customer record once and the latest values flow into billing, drafts, dues, and accounting.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ next_url or url_for('about_user', customer_id=customer.id) }}" class="btn btn-outline-secondary rounded-pill px-4">Back</a>
+      <a href="{{ url_for('about_user', customer_id=customer.id, next=next_url or url_for('view_customers')) }}" class="btn btn-light rounded-pill px-4">View Profile</a>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger alert-dismissible fade show border-0 rounded-4 shadow-sm mt-3 mb-0 pe-5 position-relative" role="alert" data-auto-dismiss-ms="6000">
+    {{ error }}
+    <button type="button" class="btn-close position-absolute top-0 end-0 mt-3 me-3" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
+
+  <div class="row g-4 mt-1">
+    <div class="col-12 col-xl-8">
+      <form method="POST" action="{{ url_for('edit_user', customer_id=customer.id) }}" class="customer-edit-form">
+        <input type="hidden" name="next" value="{{ next_url or '' }}">
+
+        <section class="customer-edit-panel">
+          <div class="customer-edit-panel-head">
+            <div>
+              <h5 class="mb-1">Customer Details</h5>
+              <p class="text-muted small mb-0">Keep the same record clean so every bill and statement stays consistent.</p>
+            </div>
+          </div>
+
+          <div class="customer-edit-grid">
+            <div class="customer-edit-field customer-edit-field-wide">
+              <label for="company" class="customer-edit-label">Company Name</label>
+              <input type="text" class="form-control customer-edit-control" id="company" name="company" value="{{ customer.company or '' }}" placeholder="Enter company name">
+            </div>
+
+            <div class="customer-edit-field customer-edit-field-wide">
+              <label for="name" class="customer-edit-label">Customer Name</label>
+              <input type="text" class="form-control customer-edit-control" id="name" name="name" value="{{ customer.name or '' }}" placeholder="Enter customer name" required>
+            </div>
+
+            <div class="customer-edit-field customer-edit-field-wide">
+              <label for="phone" class="customer-edit-label">Phone or ID</label>
+              <input type="text" class="form-control customer-edit-control" id="phone" name="phone" value="{{ customer.phone or '' }}" placeholder="Enter phone or ID" required>
+            </div>
+
+            <div class="customer-edit-field">
+              <label for="email" class="customer-edit-label">Email Address</label>
+              <input type="email" class="form-control customer-edit-control" id="email" name="email" value="{{ customer.email or '' }}" placeholder="Optional email">
+            </div>
+
+            <div class="customer-edit-field">
+              <label for="gst" class="customer-edit-label">GST Number</label>
+              <input type="text" class="form-control customer-edit-control" id="gst" name="gst" value="{{ customer.gst or '' }}" placeholder="Optional GST">
+            </div>
+
+            <div class="customer-edit-field">
+              <label for="businessType" class="customer-edit-label">Business Type</label>
+              <input type="text" class="form-control customer-edit-control" id="businessType" name="businessType" value="{{ customer.businessType or '' }}" placeholder="Optional business type">
+            </div>
+
+            <div class="customer-edit-field customer-edit-field-wide">
+              <label for="address" class="customer-edit-label">Address</label>
+              <textarea class="form-control customer-edit-control customer-edit-textarea" id="address" name="address" placeholder="Optional address">{{ customer.address or '' }}</textarea>
+            </div>
+          </div>
+        </section>
+
+        <div class="customer-edit-actions">
+          <button type="submit" class="btn btn-primary btn-lg px-4">Save Changes</button>
+          <a href="{{ next_url or url_for('about_user', customer_id=customer.id) }}" class="btn btn-outline-secondary btn-lg px-4">Cancel</a>
+        </div>
+      </form>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="customer-edit-side-stack">
+        <section class="customer-edit-panel customer-edit-side-panel">
+          <p class="customer-edit-eyebrow mb-1">Preview</p>
+          <h5 class="mb-3">Current Record</h5>
+
+          <div class="customer-edit-preview-grid">
+            <div class="customer-edit-preview-card">
+              <span class="customer-edit-preview-label">Company</span>
+              <strong id="editPreviewCompany">{{ customer.company or 'Company name' }}</strong>
+            </div>
+            <div class="customer-edit-preview-card">
+              <span class="customer-edit-preview-label">Customer</span>
+              <strong id="editPreviewName">{{ customer.name or 'Customer name' }}</strong>
+            </div>
+            <div class="customer-edit-preview-card">
+              <span class="customer-edit-preview-label">Phone / ID</span>
+              <strong id="editPreviewPhone">{{ customer.phone or 'Will show here' }}</strong>
+            </div>
+            <div class="customer-edit-preview-card">
+              <span class="customer-edit-preview-label">Address</span>
+              <strong id="editPreviewAddress">{{ customer.address or 'Optional address' }}</strong>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .customer-edit-shell {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0.75rem 0 2rem;
+  }
+
+  .customer-edit-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    padding: 1.6rem;
+    border-radius: 24px;
+    border: 1px solid #e6e9ef;
+    background: linear-gradient(135deg, #f8fbff, #f2f6ff);
+    box-shadow: 0 14px 36px rgba(15, 23, 42, 0.05);
+  }
+
+  .customer-edit-eyebrow {
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6c7683;
+    font-size: 0.78rem;
+  }
+
+  .customer-edit-panel {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid #e6e9ef;
+    border-radius: 22px;
+    padding: 1.35rem 1.4rem;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .customer-edit-panel-head {
+    margin-bottom: 1rem;
+  }
+
+  .customer-edit-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.1rem;
+  }
+
+  .customer-edit-field {
+    min-width: 0;
+  }
+
+  .customer-edit-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .customer-edit-label {
+    display: block;
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #6c7683;
+    margin-bottom: 0.5rem;
+  }
+
+  .customer-edit-control {
+    min-height: 48px;
+    border-radius: 16px;
+    border: 1px solid #dfe5ef;
+    background: #fbfcff;
+    box-shadow: none;
+    padding: 0.8rem 0.95rem;
+  }
+
+  .customer-edit-control:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.12);
+    background: #fff;
+  }
+
+  .customer-edit-textarea {
+    min-height: 120px;
+    resize: vertical;
+  }
+
+  .customer-edit-actions {
+    display: flex;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+
+  .customer-edit-side-stack {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .customer-edit-preview-grid {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .customer-edit-preview-card {
+    border: 1px solid #edf1f6;
+    border-radius: 16px;
+    background: #fafcff;
+    padding: 0.9rem 0.95rem;
+  }
+
+  .customer-edit-preview-label {
+    display: block;
+    color: #6c7683;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .customer-edit-preview-card strong {
+    display: block;
+    color: #1f2a37;
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  @media (max-width: 991.98px) {
+    .customer-edit-hero {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .customer-edit-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  (() => {
+    const company = document.getElementById('company');
+    const name = document.getElementById('name');
+    const phone = document.getElementById('phone');
+    const address = document.getElementById('address');
+
+    function bindPreview(input, targetId, fallbackText) {
+      const target = document.getElementById(targetId);
+      if (!input || !target) return;
+      const sync = () => {
+        const value = (input.value || '').trim();
+        target.textContent = value || fallbackText;
+      };
+      input.addEventListener('input', sync);
+      sync();
+    }
+
+    bindPreview(company, 'editPreviewCompany', 'Company name');
+    bindPreview(name, 'editPreviewName', 'Customer name');
+    bindPreview(phone, 'editPreviewPhone', 'Will show here');
+    bindPreview(address, 'editPreviewAddress', 'Optional address');
+  })();
+</script>
+{% endblock %}

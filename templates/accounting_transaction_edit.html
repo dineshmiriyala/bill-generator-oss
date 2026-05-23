@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% block content %}
+{% set current_type = (form_data.get('txn_type') if form_data else txn.txn_type) or 'income' %}
+{% set current_customer = (form_data.get('customer_id') if form_data else (txn.customerId if txn.customerId else '')) %}
+{% set current_invoice = form_data.get('invoice_no') if form_data else (txn.invoice_no or '') %}
+{% set current_date = form_data.get('txn_date') if form_data else (txn.created_at.strftime('%Y-%m-%d') if txn.created_at else '') %}
+{% set current_amount = form_data.get('amount') if form_data else ('%.2f'|format(txn.amount)) %}
+{% set current_mode = (form_data.get('mode') if form_data else (txn.mode or 'bank')) %}
+{% set current_account = (form_data.get('account') if form_data else (txn.account or 'current')) %}
+{% set current_remarks = form_data.get('remarks') if form_data else (txn.remarks or '') %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h2 class="fw-semibold mb-1">Edit Transaction</h2>
+      <p class="text-muted mb-0">Update ledger entry {{ txn.txn_id }}</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('accounting_transaction_detail', txn_id=txn.id) }}" class="btn btn-outline-secondary btn-sm">← Back to Details</a>
+      <a href="{{ url_for('accounting_transactions_list') }}" class="btn btn-outline-primary btn-sm">All Transactions</a>
+    </div>
+  </div>
+
+  <form method="post" class="card shadow-sm border-0">
+    <div class="card-body p-4">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="mb-4">
+            <label class="form-label d-block text-muted small text-uppercase">Transaction Type</label>
+            <div class="btn-group w-100" role="group">
+              <input type="radio" class="btn-check" name="txn_type" id="editTxnIncome" value="income" autocomplete="off" {{ 'checked' if current_type == 'income' else '' }}>
+              <label class="btn btn-outline-dark" for="editTxnIncome">Payment Received</label>
+              <input type="radio" class="btn-check" name="txn_type" id="editTxnExpense" value="expense" autocomplete="off" {{ 'checked' if current_type == 'expense' else '' }}>
+              <label class="btn btn-outline-dark" for="editTxnExpense">Expense</label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase">Customer</label>
+            <select class="form-select" name="customer_id" id="editCustomerSelect" required>
+              <option value="">Select customer</option>
+              {% for cust in customers %}
+                <option value="{{ cust.id }}" {% if current_customer|int == cust.id %}selected{% endif %}>
+                  {{ cust.name }}{% if cust.company %} — {{ cust.company }}{% endif %}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase">Invoice (optional)</label>
+            <input type="text" class="form-control" name="invoice_no" list="invoiceOptions" value="{{ current_invoice }}">
+            <datalist id="invoiceOptions">
+              {% for inv in invoice_choices %}
+                <option value="{{ inv }}"></option>
+              {% endfor %}
+            </datalist>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase">Transaction Date</label>
+            <input type="date" class="form-control" name="txn_date" value="{{ current_date }}">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase">Amount</label>
+            <input type="number" class="form-control" name="amount" step="0.01" min="0" value="{{ current_amount }}" required>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label text-muted small text-uppercase">Remarks</label>
+            <textarea class="form-control" name="remarks" rows="4" placeholder="Notes or payment identifiers">{{ current_remarks }}</textarea>
+          </div>
+        </div>
+
+        <div class="col-lg-6">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label class="form-label text-muted small text-uppercase">Mode</label>
+              <select class="form-select" name="mode">
+                {% for mode in payment_modes %}
+                  {% set label = mode.upper() if mode == 'upi' else mode|capitalize %}
+                  <option value="{{ mode }}" {% if current_mode == mode %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small text-uppercase">Account</label>
+              <select class="form-select" name="account">
+                {% for acct in account_options %}
+                  <option value="{{ acct }}" {% if current_account == acct %}selected{% endif %}>{{ acct|capitalize }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="border rounded p-3 mb-3 bg-light-subtle">
+            <p class="mb-1 text-muted small">Editing an existing entry keeps its audit history intact.</p>
+            <p class="mb-0 small text-muted">Need to reverse a transaction instead? Delete it from the detail page and record a new one.</p>
+          </div>
+
+          <div id="expenseEditor" class="{{ '' if current_type == 'expense' else 'd-none' }}">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label class="form-label text-muted small text-uppercase mb-0">Expense Items</label>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="addExpenseRowBtn">Add Item</button>
+            </div>
+            <div id="expenseRows">
+              {% for row in expense_rows %}
+                <div class="row g-2 align-items-end expense-row mb-2">
+                  <div class="col-7">
+                    <label class="form-label small text-muted">Description</label>
+                    <input type="text" class="form-control" name="expense_desc[]" value="{{ row.desc }}">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted">Amount</label>
+                    <input type="number" class="form-control" step="0.01" name="expense_amount[]" value="{{ row.amount }}">
+                  </div>
+                  <div class="col-1 text-end">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-expense-row">&times;</button>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer bg-white border-0 d-flex justify-content-end gap-2">
+      <a href="{{ url_for('accounting_transaction_detail', txn_id=txn.id) }}" class="btn btn-light">Cancel</a>
+      <button type="submit" class="btn btn-primary">Save Changes</button>
+    </div>
+  </form>
+</div>
+
+<template id="expenseRowTemplate">
+  <div class="row g-2 align-items-end expense-row mb-2">
+    <div class="col-7">
+      <label class="form-label small text-muted">Description</label>
+      <input type="text" class="form-control" name="expense_desc[]" placeholder="e.g., Packaging">
+    </div>
+    <div class="col-4">
+      <label class="form-label small text-muted">Amount</label>
+      <input type="number" class="form-control" step="0.01" name="expense_amount[]" placeholder="0.00">
+    </div>
+    <div class="col-1 text-end">
+      <button type="button" class="btn btn-outline-danger btn-sm remove-expense-row">&times;</button>
+    </div>
+  </div>
+</template>
+
+<script>
+  (function () {
+    const incomeRadio = document.getElementById('editTxnIncome');
+    const expenseRadio = document.getElementById('editTxnExpense');
+    const expenseEditor = document.getElementById('expenseEditor');
+    const addExpenseRowBtn = document.getElementById('addExpenseRowBtn');
+    const template = document.getElementById('expenseRowTemplate');
+
+    function toggleExpenseEditor() {
+      if (!expenseEditor) return;
+      if (expenseRadio.checked) {
+        expenseEditor.classList.remove('d-none');
+      } else {
+        expenseEditor.classList.add('d-none');
+      }
+    }
+
+    function bindRemoveButtons(scope) {
+      scope.querySelectorAll('.remove-expense-row').forEach((btn) => {
+        btn.addEventListener('click', function () {
+          const row = this.closest('.expense-row');
+          if (row) {
+            row.remove();
+          }
+        });
+      });
+    }
+
+    if (addExpenseRowBtn && template) {
+      addExpenseRowBtn.addEventListener('click', function () {
+        const clone = template.content.cloneNode(true);
+        document.getElementById('expenseRows').appendChild(clone);
+        bindRemoveButtons(document.getElementById('expenseRows'));
+      });
+    }
+
+    bindRemoveButtons(document.getElementById('expenseRows'));
+    if (incomeRadio && expenseRadio) {
+      incomeRadio.addEventListener('change', toggleExpenseEditor);
+      expenseRadio.addEventListener('change', toggleExpenseEditor);
+      toggleExpenseEditor();
+    }
+  })();
+</script>
+{% endblock %}

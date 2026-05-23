@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h2 class="fw-semibold mb-1">Transaction {{ txn.txn_id }}</h2>
+      <p class="text-muted mb-0">Recorded {{ txn.created_at | datetimeformat('%d %B %Y') }}</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('accounting_transactions_list') }}" class="btn btn-outline-secondary btn-sm">← All Transactions</a>
+      {% if not txn.is_deleted %}
+        <a href="{{ url_for('accounting_transaction_edit', txn_id=txn.id) }}" class="btn btn-primary btn-sm">Edit Transaction</a>
+      {% endif %}
+      {% if not txn.is_deleted %}
+        <form method="post" onsubmit="return confirm('Delete this transaction?');">
+          <button type="submit" class="btn btn-danger btn-sm">Delete Transaction</button>
+        </form>
+      {% else %}
+        <span class="badge bg-warning text-dark">Archived</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3">Summary</h5>
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Type</dt>
+            <dd class="col-sm-8">{{ txn.txn_type|capitalize }}</dd>
+
+            <dt class="col-sm-4">Amount</dt>
+            <dd class="col-sm-8 {{ 'text-success' if txn.txn_type == 'income' else 'text-danger' }}">
+              INR {{ txn.amount|inr }}
+            </dd>
+
+            <dt class="col-sm-4">Customer</dt>
+            <dd class="col-sm-8">
+              {% if txn.customer %}
+                {{ txn.customer.name }}
+                {% if txn.customer.company %}
+                  <div class="text-muted small">{{ txn.customer.company }}</div>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Invoice</dt>
+            <dd class="col-sm-8">{{ txn.invoice_no or '—' }}</dd>
+
+            <dt class="col-sm-4">Mode</dt>
+            <dd class="col-sm-8 text-capitalize">{{ txn.mode or '—' }}</dd>
+
+            <dt class="col-sm-4">Account</dt>
+            <dd class="col-sm-8 text-capitalize">{{ txn.account or '—' }}</dd>
+
+            <dt class="col-sm-4">Status</dt>
+            <dd class="col-sm-8">
+              {% if txn.is_deleted %}
+                <span class="badge bg-warning text-dark">Deleted</span>
+              {% else %}
+                <span class="badge bg-success-subtle text-success">Active</span>
+              {% endif %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3">Notes</h5>
+          {% if txn.remarks %}
+            <p class="mb-0">{{ txn.remarks }}</p>
+          {% else %}
+            <p class="text-muted mb-0">No remarks added.</p>
+          {% endif %}
+          {% if txn.expense_items %}
+            <hr>
+            <h6 class="fw-semibold">Expense Items</h6>
+            <ul class="list-unstyled mb-0">
+              {% for item in txn.expense_items %}
+                <li class="d-flex justify-content-between border-bottom py-1">
+                  <span>{{ item.description }}</span>
+                  {% if item.amount %}
+                    <span>INR {{ item.amount|inr }}</span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .accounting-shell {
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .accounting-hero,
+  .accounting-card {
+    border: 1px solid rgba(27, 78, 160, 0.10);
+    border-radius: 28px;
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  }
+  .accounting-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.76rem;
+    color: #6b7a90;
+    font-weight: 700;
+  }
+  .accounting-search-input {
+    min-height: 62px;
+    border-radius: 18px;
+    padding: 0 1rem;
+    font-size: 1.05rem;
+    border: 1px solid rgba(15, 23, 42, 0.10);
+  }
+  .accounting-search-btn {
+    min-width: 140px;
+    border-radius: 18px;
+    font-weight: 600;
+  }
+  .accounting-stats-card {
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    border-radius: 24px;
+    background: #fff;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.06);
+  }
+  .accounting-top-list {
+    display: grid;
+    gap: 1rem;
+  }
+  .accounting-top-entry {
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid rgba(27, 78, 160, 0.12);
+    border-radius: 18px;
+    padding: 0.95rem 1rem;
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  }
+  .accounting-top-entry:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.10);
+    border-color: rgba(27, 78, 160, 0.20);
+  }
+  .accounting-top-company {
+    color: #6b7280;
+    font-size: 0.88rem;
+  }
+  .accounting-top-metrics {
+    display: flex;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+  }
+  .accounting-top-metric {
+    min-width: 0;
+  }
+  .accounting-top-metric-label {
+    display: block;
+    font-size: 0.69rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 0.15rem;
+    font-weight: 700;
+  }
+  .accounting-suggestion-list {
+    z-index: 1000;
+    display: none;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  @media (max-width: 575.98px) {
+    .accounting-search-btn {
+      width: 100%;
+    }
+  }
+</style>
+
+<div class="container-fluid py-4">
+  <div class="accounting-shell">
+    <section class="accounting-hero p-4 p-lg-5 mb-4">
+      <div class="row g-4 align-items-start">
+        <div class="col-lg-8">
+          <p class="accounting-eyebrow mb-2">Accounting</p>
+          <h2 class="fw-semibold mb-2">See the due customers first.</h2>
+          <p class="text-muted mb-4">
+            Search any customer by name, company, or phone to open a cleaner accounting page with invoices,
+            payments, and print options. Use the accounting statement page when you want the full company ledger view.
+          </p>
+
+          <form method="get" class="position-relative" autocomplete="off">
+            <div class="row g-2 align-items-stretch">
+              <div class="col-lg-9 position-relative">
+                <input
+                  type="text"
+                  class="form-control accounting-search-input"
+                  id="accountingDashboardSearch"
+                  name="customer"
+                  value="{{ customer_search }}"
+                  placeholder="Search customer, company, or phone"
+                >
+                <div id="accountingSuggestionsList" class="list-group position-absolute w-100 shadow-sm accounting-suggestion-list"></div>
+              </div>
+              <div class="col-lg-3 d-grid">
+                <button type="submit" class="btn btn-primary accounting-search-btn">Open Customer</button>
+              </div>
+            </div>
+          </form>
+
+          {% if search_error %}
+          <div class="alert alert-warning alert-dismissible fade show border-0 shadow-sm mt-3 mb-0 pe-5 position-relative" role="alert" data-auto-dismiss-ms="6000">
+            {{ search_error }}
+            <button type="button" class="btn-close position-absolute top-0 end-0 mt-3 me-3" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="col-lg-4">
+          <div class="d-flex justify-content-lg-end gap-2 flex-wrap">
+            <a href="{{ url_for('home') }}" class="btn btn-outline-secondary btn-sm">Back to Home</a>
+            <a href="{{ url_for('accounting_statement') }}" class="btn btn-outline-primary btn-sm">Company Books</a>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recordTxnModal">
+              Record Payment / Expense
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="accounting-stats-card h-100 p-4">
+          <div class="text-muted text-uppercase small fw-semibold mb-2">Total Due</div>
+          <h3 class="mb-1 fw-semibold">INR {{ totals.outstanding_total|inr }}</h3>
+          <div class="small text-muted">Current customer balance still pending.</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="accounting-stats-card h-100 p-4">
+          <div class="text-muted text-uppercase small fw-semibold mb-2">Payments Received</div>
+          <h3 class="mb-1 fw-semibold text-success">INR {{ totals.income_total|inr }}</h3>
+          <div class="small text-muted">All recorded income transactions.</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="accounting-stats-card h-100 p-4">
+          <div class="text-muted text-uppercase small fw-semibold mb-2">Customers With Dues</div>
+          <h3 class="mb-1 fw-semibold">{{ customers_with_dues }}</h3>
+          <div class="small text-muted">Only the top 3 are shown below.</div>
+        </div>
+      </div>
+    </div>
+
+    <section class="accounting-card p-4 p-lg-5">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+          <p class="accounting-eyebrow mb-1">Priority</p>
+          <h4 class="fw-semibold mb-1">Top Dues</h4>
+          <p class="text-muted mb-0">Open any customer to see full accounting details.</p>
+        </div>
+        <span class="badge rounded-pill text-bg-light px-3 py-2">{{ top_due_customers|length }} shown</span>
+      </div>
+
+      {% if top_due_customers %}
+      <div class="accounting-top-list">
+        {% for entry in top_due_customers %}
+        <a
+          href="{{ url_for('accounting_customer_detail', customer_id=entry.customer_id) }}"
+          class="accounting-top-entry"
+          data-accounting-top-due="{{ entry.customer_id }}"
+        >
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-2">
+            <div>
+              <div class="fw-semibold fs-6">{{ entry.customer }}</div>
+              {% if entry.company %}
+              <div class="accounting-top-company">{{ entry.company }}</div>
+              {% endif %}
+            </div>
+            <span class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2 small">
+              Due INR {{ entry.balance|inr }}
+            </span>
+          </div>
+
+          <div class="accounting-top-metrics">
+            <div class="accounting-top-metric">
+              <span class="accounting-top-metric-label">Due</span>
+              <strong class="small">INR {{ entry.balance|inr }}</strong>
+            </div>
+            <div class="accounting-top-metric">
+              <span class="accounting-top-metric-label">Paid</span>
+              <strong class="text-success small">INR {{ entry.paid|inr }}</strong>
+            </div>
+            <div class="accounting-top-metric">
+              <span class="accounting-top-metric-label">Bills</span>
+              <strong class="small">{{ entry.invoice_count }}</strong>
+            </div>
+            <div class="accounting-top-metric">
+              <span class="accounting-top-metric-label">Last Bill</span>
+              <strong class="small">
+                {% if entry.latest_invoice_date %}
+                  {{ entry.latest_invoice_date | datetimeformat('%d %b %Y') }}
+                {% else %}
+                  —
+                {% endif %}
+              </strong>
+            </div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center py-5 text-muted">
+        <strong>No due customers right now.</strong>
+        <div class="small mt-2">Once there are unpaid balances, the highest ones will show here.</div>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+{% include 'partials/accounting_modal.html' %}
+{% include 'partials/accounting_modal_script.html' %}
+
+<script>
+  (function() {
+    const suggestions = {{ suggestions|tojson }};
+    const input = document.getElementById('accountingDashboardSearch');
+    const list = document.getElementById('accountingSuggestionsList');
+    if (!input || !list) return;
+
+    input.addEventListener('input', () => {
+      const value = (input.value || '').toLowerCase().trim();
+      list.innerHTML = '';
+      if (!value) {
+        list.style.display = 'none';
+        return;
+      }
+
+      const matches = suggestions.filter((entry) => {
+        return (entry.name || '').toLowerCase().includes(value) ||
+               (entry.company || '').toLowerCase().includes(value) ||
+               (entry.phone || '').toLowerCase().includes(value);
+      }).slice(0, 8);
+
+      matches.forEach((entry) => {
+        const item = document.createElement('a');
+        item.href = '#';
+        item.className = 'list-group-item list-group-item-action';
+        const primary = entry.company || entry.name || entry.phone;
+        const secondary = [entry.name, entry.phone].filter(Boolean).join(' · ');
+        const strong = document.createElement('strong');
+        strong.textContent = primary;
+        item.appendChild(strong);
+        if (secondary) {
+          const secondaryEl = document.createElement('div');
+          secondaryEl.className = 'small text-muted mt-1';
+          secondaryEl.textContent = secondary;
+          item.appendChild(secondaryEl);
+        }
+        item.addEventListener('click', (event) => {
+          event.preventDefault();
+          input.value = entry.company || entry.name || entry.phone || '';
+          list.style.display = 'none';
+        });
+        list.appendChild(item);
+      });
+
+      list.style.display = matches.length ? 'block' : 'none';
+    });
+
+    document.addEventListener('click', (event) => {
+      if (event.target !== input && !list.contains(event.target)) {
+        list.style.display = 'none';
+      }
+    });
+  })();
+</script>
+{% endblock %}

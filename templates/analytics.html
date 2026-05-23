@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+
+  <!-- Sales Trends (large) -->
+  <div class="chart-container mb-4" style="height:400px;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0">Sales Trends</h5>
+      <div class="btn-group" role="group" style="margin-left: auto;">
+        <button type="button" class="btn btn-outline-dark btn-sm" onclick="loadSales('day')">Past Month</button>
+        <button type="button" class="btn btn-outline-dark btn-sm" onclick="loadSales('month')">Past Year</button>
+        <button type="button" class="btn btn-outline-dark btn-sm" onclick="loadSales('year')">All Time</button>
+        <button type="button" class="btn btn-outline-dark btn-sm" onclick="loadSales('weekday')">By Weekday</button>
+      </div>
+      <button type="button" class="icon-btn ms-2" onclick="refreshDashboards()" aria-label="Refresh Dashboard">⟳</button>
+    </div>
+    <div id="salesTrends" style="width:100%;height:100%;display:flex;align-items:center;justify-content:left;">
+      <div class="loader"></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Top Customers (full width and taller) -->
+    <div class="col-12">
+      <div class="chart-container" style="height:400px;">
+        <h5 class="mb-3">Top 5 Billed Companies (All Time)</h5>
+        <div id="topCustomers" style="width:100%;height:100%;display:flex;align-items:center;justify-content:left;">
+          <div class="loader"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+:root{
+  --card-bg:#fafafa;
+  --card-border:#e5e7eb;
+  --grid:#eaeaea;
+  --ink:#111827;
+  --muted:#6b7280;
+  --accent:#3b82f6;
+  --accent-strong:#1d4ed8;
+  --success:#10b981;
+}
+.chart-container {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 24px 24px 36px; /* extra bottom padding to keep ticks inside */
+  border: 1px solid var(--card-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  margin-bottom: 28px;
+}
+.btn-group .btn { border-radius: 20px !important; }
+h5 { color: var(--ink); font-weight: 600; }
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--accent);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.btn-group .btn.active {
+  background-color: var(--accent);
+  color: #fff;
+}
+/* Icon button for refresh */
+.icon-btn {
+  background: none;
+  border: none;
+  font-size: 1.6rem; /* increased from 1.2rem */
+  cursor: pointer;
+  color: var(--ink);
+  padding: 6px 8px; /* slightly bigger click target */
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+.icon-btn:hover {
+  background-color: var(--card-border);
+}
+</style>
+
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<script>
+function loadSales(granularity="month") {
+  document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
+  if (granularity === "day") {
+    document.querySelector('.btn-group .btn[onclick="loadSales(\'day\')"]').classList.add('active');
+  } else if (granularity === "month") {
+    document.querySelector('.btn-group .btn[onclick="loadSales(\'month\')"]').classList.add('active');
+  } else if (granularity === "year") {
+    document.querySelector('.btn-group .btn[onclick="loadSales(\'year\')"]').classList.add('active');
+  } else if (granularity === "weekday") {
+    document.querySelector('.btn-group .btn[onclick="loadSales(\'weekday\')"]').classList.add('active');
+  }
+
+  let labels = [];
+  let totals = [];
+
+  if (granularity === "day") {
+    labels = {{ day_labels|tojson }};
+    totals = {{ day_totals|tojson }};
+  } else if (granularity === "year") {
+    labels = {{ year_labels|tojson }};
+    totals = {{ year_totals|tojson }};
+  } else if (granularity === "weekday") {
+    labels = {{ weekday_labels|tojson }};
+    totals = {{ weekday_totals|tojson }};
+  } else {
+    labels = {{ month_labels|tojson }};
+    totals = {{ month_totals|tojson }};
+  }
+
+  const trace = {
+    x: labels,
+    y: totals,
+    type: 'scatter',
+    mode: 'lines+markers',
+    line: { color: '#3b82f6', width: 3, shape: 'spline' },
+    marker: { color: '#3b82f6', size: 6 }
+  };
+
+  const layout = {
+    autosize: true,
+    height: 285, // smaller plot height inside container
+    margin: { t: 10, r: 20, l: 40, b: 40 },
+    paper_bgcolor: '#fafafa',
+    plot_bgcolor: '#fafafa',
+    xaxis: {
+      title: '',
+      tickangle: -20,
+      automargin: true,
+      type: 'category'
+    },
+    yaxis: {
+      title: 'Sales (INR)',
+      automargin: true,
+      tickmode: 'auto',
+      tickfont: { size: 12 },
+      tickprefix: '',
+      tickformat: ','
+    },
+    showlegend: false
+  };
+
+  document.getElementById('salesTrends').innerHTML = "";
+  Plotly.newPlot('salesTrends', [trace], layout, {responsive: true});
+}
+
+function loadTopCustomers() {
+  const labels = {{ customer_names|tojson }};
+  const totals = {{ revenues|tojson }};
+  const paired = labels.map((l, i) => [l, totals[i]]);
+  paired.sort((a,b) => b[1]-a[1]);
+  const sortedLabels = paired.map(p=>p[0]);
+  const sortedTotals = paired.map(p=>p[1]);
+
+  const trace = {
+    x: sortedTotals,
+    y: sortedLabels,
+    type: 'bar',
+    orientation: 'h',
+    marker: { color: '#10b981' }
+  };
+
+  const layout = {
+    autosize: true,
+    height: 300, // smaller plot height inside container
+    margin: { t: 10, r: 20, l: 120, b: 40 },
+    paper_bgcolor: '#fafafa',
+    plot_bgcolor: '#fafafa',
+    xaxis: {
+      title: 'Revenue (INR)',
+      automargin: true,
+      tickprefix: '',
+      tickformat: ','
+    },
+    yaxis: { automargin: true },
+    showlegend: false
+  };
+
+  document.getElementById('topCustomers').innerHTML = "";
+  Plotly.newPlot('topCustomers', [trace], layout, {responsive: true});
+}
+
+function refreshDashboards() {
+  // Clear loaders
+  document.getElementById('salesTrends').innerHTML = "<div class='loader'></div>";
+  document.getElementById('topCustomers').innerHTML = "<div class='loader'></div>";
+
+  // Reload charts (keep default granularity as current active)
+  const activeBtn = document.querySelector('.btn-group .btn.active');
+  let granularity = "day";
+  if (activeBtn) {
+    if (activeBtn.textContent.includes("Month")) granularity = "day";
+    else if (activeBtn.textContent.includes("Year")) granularity = "month";
+    else if (activeBtn.textContent.includes("All")) granularity = "year";
+    else if (activeBtn.textContent.includes("Weekday")) granularity = "weekday";
+  }
+  loadSales(granularity);
+  loadTopCustomers();
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  loadSales("day");
+  loadTopCustomers();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-7">
+            <div class="card shadow-lg p-4" style="border-radius: 1rem;">
+                {% if not qr_image %}
+                <div class="text-center mb-4">
+                    <h3 class="fw-semibold" style="background: linear-gradient(90deg, #007bff, #00c6ff); -webkit-background-clip: text; color: transparent;">Generate Payment QR</h3>
+                    <p class="text-muted small mb-0">Choose which UPI profile to surface on the QR and generate instantly.</p>
+                </div>
+                <form action="/generate_qr" method="post" class="row g-4">
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label small text-muted mb-1">Amount</label>
+                        <input type="number" step="0.01" name="amount" class="form-control shadow-sm" placeholder="Enter amount" required>
+
+                        {% if upi_variants %}
+                        <div class="mt-4">
+                            <label class="form-label small text-muted mb-2">Select UPI Profile</label>
+                            <div class="d-flex flex-column gap-2">
+                                {% for variant in upi_variants %}
+                                <label class="d-flex align-items-start gap-3 border rounded-3 p-3 shadow-sm small mb-0" style="cursor:pointer;">
+                                    <input class="form-check-input mt-1" type="radio" name="upi_variant"
+                                           id="variant-{{ variant.key }}"
+                                           value="{{ variant.key }}"
+                                           data-upi-id="{{ variant.upi_id }}"
+                                           data-upi-name="{{ variant.upi_name }}"
+                                           {% if selected_variant == variant.key %}checked{% endif %}>
+                                    <div>
+                                        <div class="fw-semibold text-dark">{{ variant.label }}</div>
+                                        <div class="text-muted">{{ variant.upi_name or 'No display name' }}</div>
+                                        <div class="text-muted">{{ variant.upi_id }}</div>
+                                    </div>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% else %}
+                        <input type="hidden" name="upi_variant" value="primary">
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12 col-lg-6">
+                        <label class="form-label small text-muted mb-1">Name</label>
+                        <div class="input-group mb-3">
+                            <input type="text" id="upiNameInput" name="upi_name" class="form-control shadow-sm" value="{{ upi_name }}" readonly>
+                            <button type="button" id="editUpiNameBtn" class="btn btn-outline-secondary shadow-sm">Edit</button>
+                        </div>
+
+                        <label class="form-label small text-muted mb-1">UPI ID</label>
+                        <div class="input-group">
+                            <input type="text" id="upiInput" name="upi_id" class="form-control shadow-sm"
+                                   value="{{ upi_id }}" readonly
+                                   pattern="^[A-Za-z0-9.\-_]{2,}@([A-Za-z]{2,}|[A-Za-z]{2,}\.[A-Za-z]{2,})$"
+                                   title="Enter a valid UPI ID, e.g. username@upi or user.name@bankname">
+                            <button type="button" id="editUpiBtn" class="btn btn-outline-secondary shadow-sm">Edit</button>
+                        </div>
+                        <div class="form-text">
+                            Want to update the defaults? Head to the
+                            <a href="{{ url_for('config') }}#upi-info-section" class="text-decoration-none">UPI settings</a>.
+                        </div>
+                    </div>
+
+                    <div class="col-12 d-flex flex-column flex-sm-row gap-3">
+                        <button type="submit" class="btn btn-primary w-100 shadow-sm rounded-pill">Generate</button>
+                        <button type="submit" name="no_amount" value="true" class="btn btn-outline-primary w-100 shadow-sm rounded-pill">QR Without Amount</button>
+                    </div>
+                </form>
+                <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editBtn = document.getElementById('editUpiBtn');
+    const upiInput = document.getElementById('upiInput');
+    const editNameBtn = document.getElementById('editUpiNameBtn');
+    const upiNameInput = document.getElementById('upiNameInput');
+
+    const toggleInput = (input, button) => {
+        if (!input || !button) {
+            return;
+        }
+        const readOnly = input.hasAttribute('readonly');
+        if (readOnly) {
+            input.removeAttribute('readonly');
+            input.focus();
+            button.textContent = 'Save';
+            button.classList.remove('btn-outline-secondary');
+            button.classList.add('btn-success');
+        } else {
+            input.setAttribute('readonly', true);
+            button.textContent = 'Edit';
+            button.classList.remove('btn-success');
+            button.classList.add('btn-outline-secondary');
+        }
+    };
+
+    if (editBtn && upiInput) {
+        editBtn.addEventListener('click', function () {
+            toggleInput(upiInput, editBtn);
+        });
+    }
+
+    if (editNameBtn && upiNameInput) {
+        editNameBtn.addEventListener('click', function () {
+            toggleInput(upiNameInput, editNameBtn);
+        });
+    }
+
+    const resetReadonlyState = () => {
+        if (upiInput && editBtn) {
+            upiInput.setAttribute('readonly', true);
+            editBtn.textContent = 'Edit';
+            editBtn.classList.remove('btn-success');
+            editBtn.classList.add('btn-outline-secondary');
+        }
+        if (upiNameInput && editNameBtn) {
+            upiNameInput.setAttribute('readonly', true);
+            editNameBtn.textContent = 'Edit';
+            editNameBtn.classList.remove('btn-success');
+            editNameBtn.classList.add('btn-outline-secondary');
+        }
+    };
+
+    document.querySelectorAll('input[name=\"upi_variant\"]').forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            if (!radio.checked) {
+                return;
+            }
+            const selectedId = radio.getAttribute('data-upi-id') || '';
+            const selectedName = radio.getAttribute('data-upi-name') || '';
+            if (upiInput) {
+                upiInput.value = selectedId;
+            }
+            if (upiNameInput) {
+                upiNameInput.value = selectedName;
+            }
+            resetReadonlyState();
+        });
+    });
+
+    // Handle "QR Code Without Amount" button
+    const noAmountBtn = document.querySelector('button[name=\"no_amount\"]');
+    const amountInput = document.querySelector('input[name=\"amount\"]');
+
+    if (noAmountBtn && amountInput) {
+        noAmountBtn.addEventListener('click', function() {
+            amountInput.removeAttribute('required'); // disable required validation
+            amountInput.value = ''; // clear any existing amount
+            const form = noAmountBtn.closest('form');
+            if (form) {
+                form.submit(); // submit the form immediately
+            }
+        });
+    }
+});
+                </script>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

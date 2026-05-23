@@ -1,0 +1,352 @@
+{% extends 'base.html' %}
+{% set hide_navbar = True %}
+{% set logo_color_mode = APP_INFO.business.logo_color_mode if APP_INFO.business and APP_INFO.business.logo_color_mode else 'black' %}
+{% set base_logo_height = 52 %}
+{% set logo_print_height = base_logo_height * (0.8 if logo_color_mode == 'blue' else 1) %}
+{% block title %}{{ pdf_title | default('Accounting_Statement') }}{% endblock %}
+{% block head %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  .brand-logo {
+    height: {{ base_logo_height }}px;
+    width: auto;
+    max-width: 280px;
+    object-fit: contain;
+  }
+  @media print {
+    .brand-logo {
+      max-height: {{ logo_print_height | round(1) }}px !important;
+      height: {{ logo_print_height | round(1) }}px !important;
+      width: auto !important;
+      max-width: none !important;
+    }
+  }
+</style>
+{% endblock %}
+{% set is_customer_statement = selected_customer is not none %}
+{% set show_income = show_income_columns %}
+{% set show_expense = show_expense_columns %}
+{% block content %}
+<div class="container py-4" style="max-width: 940px;">
+  <div class="text-center mb-4">
+    <div class="mb-2">
+      <img class="brand-logo" src="{{ url_for('static', filename=APP_INFO.business.logo_path.replace('static/', '')) }}"
+           alt="{{ APP_INFO.business.name }}"
+           onerror="this.style.display='none';">
+    </div>
+    <p class="text-muted mb-0">{{ APP_INFO.business.address }}</p>
+    <p class="text-muted mb-1">{{ APP_INFO.business.phone }} · {{ APP_INFO.business.email }}</p>
+    <h5 class="fw-semibold mb-0">{{ 'Customer Accounting Statement' if is_customer_statement else 'Company Accounting Statement' }}</h5>
+    <small class="text-muted d-block mb-2">{{ statement_range_label }} · Generated {{ generated_at.strftime('%d %b %Y %H:%M') }}</small>
+    {% if is_customer_statement and selected_customer %}
+      <span class="badge bg-secondary-subtle text-secondary">
+        {{ selected_customer.name }}{% if selected_customer.company %} · {{ selected_customer.company }}{% endif %}
+        {% if selected_customer.phone %} · {{ selected_customer.phone }}{% endif %}
+      </span>
+    {% endif %}
+  </div>
+
+  {% if is_customer_statement and customer_statement_summary %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Invoices Raised</p>
+        <h4 class="mb-0">INR {{ customer_statement_summary.invoice_total|inr }}</h4>
+        <small class="text-muted">{{ customer_statement_summary.invoice_count }} invoices</small>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Payments Received</p>
+        <h4 class="text-success mb-0">INR {{ customer_statement_summary.payment_total|inr }}</h4>
+        <small class="text-muted">{{ customer_statement_summary.payment_count }} payments</small>
+      </div>
+    </div>
+    {% if customer_statement_summary.adjustment_total %}
+    <div class="col-md-3 col-sm-6">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Outgoing</p>
+        <h4 class="text-danger mb-0">INR {{ customer_statement_summary.adjustment_total|inr }}</h4>
+        <small class="text-muted">Additional charges/credits</small>
+      </div>
+    </div>
+    {% endif %}
+    <div class="col-md-3 col-sm-6">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Balance Due</p>
+        <h4 class="{{ 'text-success' if customer_statement_summary.balance <= 0 else 'text-danger' }} mb-0">
+          INR {{ customer_statement_summary.balance|inr }}
+        </h4>
+        <small class="text-muted">As of {{ generated_at.strftime('%d %b %Y') }}</small>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Invoices Raised</p>
+        <h4 class="mb-0">INR {{ statement_invoice_total|inr }}</h4>
+        <small class="text-muted">{{ statement_invoice_count }} invoices</small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Payments Received</p>
+        <h4 class="text-success mb-0">INR {{ income_total|inr }}</h4>
+        <small class="text-muted">{{ income_count }} entries</small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Outgoing</p>
+        <h4 class="text-danger mb-0">INR {{ expense_total|inr }}</h4>
+        <small class="text-muted">{{ expense_count }} entries</small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="border rounded-3 p-3 h-100">
+        <p class="text-muted text-uppercase small mb-1">Net Movement</p>
+        <h4 class="{{ 'text-success' if net_flow >= 0 else 'text-danger' }} mb-0">
+          INR {{ net_flow|inr }}
+        </h4>
+        <small class="text-muted">Payments - Outgoing</small>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if is_customer_statement %}
+
+  <div class="border rounded-3 p-3 mb-4">
+    <h5 class="fw-semibold mb-2">Customer Details</h5>
+    <div class="row small">
+      <div class="col-md-6">
+        <p class="mb-1"><strong>Name:</strong> {{ selected_customer.name }}</p>
+        {% if selected_customer.company %}<p class="mb-1"><strong>Company:</strong> {{ selected_customer.company }}</p>{% endif %}
+        {% if selected_customer.phone %}<p class="mb-1"><strong>Phone:</strong> {{ selected_customer.phone }}</p>{% endif %}
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1"><strong>Statement Period:</strong> {{ statement_range_label }}</p>
+        <p class="mb-0"><strong>Generated On:</strong> {{ generated_at.strftime('%d %b %Y %H:%M') }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="border rounded-3 p-3 mb-4">
+    <h5 class="fw-semibold mb-3">Invoices Raised</h5>
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Date</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if customer_invoices %}
+          {% for inv in customer_invoices %}
+          <tr>
+            <td>{{ inv.invoice_no }}</td>
+            <td>{{ inv.date.strftime('%d %b %Y') }}</td>
+            <td class="text-end">{{ inv.total|inr }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="3" class="text-center text-muted small">No invoices in this period.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="border rounded-3 p-3 mb-4">
+    <h5 class="fw-semibold mb-3">Payments Received</h5>
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Reference</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if customer_payments %}
+          {% for pay in customer_payments %}
+          <tr>
+            <td>{{ pay.date.strftime('%d %b %Y') }}</td>
+            <td>
+              {{ pay.mode|upper }} · {{ pay.txn_id }}
+              {% if pay.remarks %}<div class="text-muted small">{{ pay.remarks }}</div>{% endif %}
+            </td>
+            <td class="text-end text-success">INR {{ pay.amount|inr }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="3" class="text-center text-muted small">No payments recorded.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if customer_adjustments %}
+  <div class="border rounded-3 p-3 mb-4">
+    <h5 class="fw-semibold mb-3">Outgoing</h5>
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Reference</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for adj in customer_adjustments %}
+        <tr>
+          <td>{{ adj.date.strftime('%d %b %Y') }}</td>
+          <td>
+            {{ adj.mode|upper }} · {{ adj.txn_id }}
+            {% if adj.remarks %}<div class="text-muted small">{{ adj.remarks }}</div>{% endif %}
+          </td>
+          <td class="text-end text-danger">INR {{ adj.amount|inr }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% else %}
+
+  <div class="border rounded-3 p-3 mb-4">
+    <h5 class="fw-semibold mb-3">Invoices Raised</h5>
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Date</th>
+          <th>Customer</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in statement_invoices %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ row.invoice_no }}</div>
+            </td>
+            <td>{{ row.date.strftime('%d %b %Y') }}</td>
+            <td>
+              <div>{{ row.company or row.customer_name or '—' }}</div>
+              {% if row.phone %}<small class="text-muted">{{ row.phone }}</small>{% endif %}
+            </td>
+            <td class="text-end">INR {{ row.total|inr }}</td>
+          </tr>
+        {% endfor %}
+        {% if not statement_invoices %}
+          <tr><td colspan="4" class="text-center text-muted small">No invoices in the selected period.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="border rounded-3 p-3 mb-4">
+    <h5 class="fw-semibold mb-3">All Transactions</h5>
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Txn ID</th>
+          <th>Type</th>
+          <th>Customer / Invoice</th>
+          <th>Mode / Account</th>
+          <th class="text-end">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for txn in transactions %}
+          <tr>
+            <td>{{ txn.created_at | datetimeformat('%d %b %Y') }}</td>
+            <td>{{ txn.txn_id }}</td>
+            <td>{{ txn.txn_type|capitalize }}</td>
+            <td>
+              {% if txn.customer %}
+                <div>{{ txn.customer.name }}</div>
+                {% if txn.customer.company %}<small class="text-muted">{{ txn.customer.company }}</small>{% endif %}
+              {% else %}
+                <div class="text-muted">Unassigned</div>
+              {% endif %}
+              {% if txn.invoice_no %}<small class="text-muted d-block">Invoice: {{ txn.invoice_no }}</small>{% endif %}
+              {% if txn.remarks %}<small class="text-muted d-block">{{ txn.remarks }}</small>{% endif %}
+            </td>
+            <td>
+              <div class="text-uppercase">{{ txn.mode or '—' }}</div>
+              <small class="text-muted text-capitalize">{{ txn.account or '—' }}</small>
+            </td>
+            <td class="text-end">{{ txn.amount|inr }}</td>
+          </tr>
+        {% endfor %}
+        {% if not transactions %}
+          <tr><td colspan="6" class="text-center text-muted small">No entries for the selected filters.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% endif %}
+
+  <div class="border rounded-3 p-3 mb-4">
+    <h6 class="fw-semibold mb-2">Payment Information</h6>
+    <div class="row small">
+      <div class="col-md-6">
+        <p class="mb-1"><strong>Account Name:</strong> {{ APP_INFO.bank.account_name }}</p>
+        <p class="mb-1"><strong>Bank:</strong> {{ APP_INFO.bank.bank_name }}, {{ APP_INFO.bank.branch }}</p>
+        <p class="mb-1"><strong>Account No:</strong> {{ APP_INFO.bank.account_number }}</p>
+        <p class="mb-1"><strong>IFSC:</strong> {{ APP_INFO.bank.ifsc }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1"><strong>UPI ID:</strong> {{ APP_INFO.bank.get('upi_id') or APP_INFO.upi_info.upi_id }}</p>
+        <p class="mb-1"><strong>Phone:</strong> {{ APP_INFO.business.phone }}</p>
+        <p class="text-muted mt-2">{{ APP_INFO.get('statement', {}).get('disclaimer', 'This is a computer-generated statement.') }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center d-print-none">
+    <button class="btn btn-dark px-4" onclick="window.print()">Print Statement</button>
+  </div>
+</div>
+
+<script>
+  window.onload = function () {
+    const pdfTitle = {{ pdf_title|tojson if pdf_title is defined else '"Accounting_Statement"' }};
+    document.title = pdfTitle;
+    window.print();
+  };
+</script>
+{% endblock %}
+{% block extra_styles %}
+<style>
+  body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+  }
+  .table th, .table td {
+    font-size: 0.9rem;
+    vertical-align: middle;
+  }
+  @media print {
+    .table, .table th, .table td {
+      border: 1px solid #000 !important;
+    }
+    .table thead {
+      background: #f8f9fa !important;
+    }
+    .d-print-none {
+      display: none !important;
+    }
+  }
+</style>
+{% endblock %}

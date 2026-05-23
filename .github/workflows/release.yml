@@ -1,0 +1,133 @@
+name: Build and release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    # Lets you trigger a build manually from the GitHub UI (Actions tab
+    # → "Build and release" → "Run workflow"). Useful for smoke-testing
+    # without cutting a real version.
+
+permissions:
+  contents: write
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Windows .exe
+  # ---------------------------------------------------------------------------
+  build-windows:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build executable
+        shell: cmd
+        run: build_exe.bat
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bill-generator-windows
+          path: dist/*.exe
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # macOS .app — Apple Silicon (arm64)
+  # ---------------------------------------------------------------------------
+  build-macos-arm64:
+    name: Build macOS .app (Apple Silicon)
+    runs-on: macos-latest      # macos-latest currently provisions arm64 runners
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build .app bundle
+        run: |
+          chmod +x build_macos.sh
+          ./build_macos.sh
+
+      - name: Zip the .app bundle
+        # A .app is actually a directory; uploading it as a release
+        # asset requires zipping first so the bundle structure survives
+        # the round-trip through users' browsers.
+        run: |
+          cd dist
+          for app in *.app; do
+            zip -r -y "${app%.app}-macos-arm64.zip" "$app"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bill-generator-macos-arm64
+          path: dist/*-macos-arm64.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # macOS .app — Intel (x86_64)
+  # ---------------------------------------------------------------------------
+  build-macos-intel:
+    name: Build macOS .app (Intel)
+    runs-on: macos-13          # macos-13 is the last GH-hosted x86_64 runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build .app bundle
+        run: |
+          chmod +x build_macos.sh
+          ./build_macos.sh
+
+      - name: Zip the .app bundle
+        run: |
+          cd dist
+          for app in *.app; do
+            zip -r -y "${app%.app}-macos-intel.zip" "$app"
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bill-generator-macos-intel
+          path: dist/*-macos-intel.zip
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Publish a GitHub Release with all three binaries attached.
+  # Only runs when triggered by a version tag push.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-macos-arm64, build-macos-intel]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifact tree
+        run: |
+          mkdir -p release
+          find artifacts -type f \( -name '*.exe' -o -name '*.zip' \) -exec cp {} release/ \;
+          ls -la release
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

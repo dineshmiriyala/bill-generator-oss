@@ -1,0 +1,9 @@
+# Version manifest — main entrypoint for the package definition.
+# Submit alongside the .installer.yaml and .locale.en-US.yaml files
+# under manifests/b/BillGenerator/BillGenerator/__VERSION__/ in the
+# microsoft/winget-pkgs repo.
+PackageIdentifier: BillGenerator.BillGenerator
+PackageVersion: __VERSION__
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

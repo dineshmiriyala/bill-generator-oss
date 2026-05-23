@@ -1,0 +1,85 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+.env
+.pytest_cache/
+
+tests/__pycache__/
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Local DB & instance
+db/app.db
+instance/
+
+# Generated
+*.pdf
+static/img/.DS_Store
+
+# Alembic logs (keep versions/)
+migrations/*.log
+
+# Build artifacts (PyInstaller)
+build/
+*.spec
+*.toc
+*.pkg
+*.pyz
+*.zip
+*.html
+!templates/*.html
+!templates/**/*.html
+
+# Flask cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual environment
+venv/
+.venv/
+env/
+.env/
+
+# Local database files
+*.db
+*.sqlite3
+
+# Backup and temp files
+*.bak
+*.tmp
+*.swp
+
+# System files
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+logs/
+db/info.json
+db/info copy.json
+
+db/backups
+
+# Persisted per-install secret (generated on first run)
+db/secret.key
+secret.key
+
+# PyInstaller dist output (binaries should never be tracked)
+dist/
+
+# Allow the example info.json template to remain tracked
+!db/info.example.json
+

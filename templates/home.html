@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% set hide_navbar = True %}
+
+{% block content %}
+
+<style>
+  .floating-action-group {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.4rem;
+    z-index: 1050;
+  }
+  .floating-action-group .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .floating-action-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 24px;
+    line-height: 1;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    color: #fff;
+    text-decoration: none;
+  }
+  .floating-action-btn:hover,
+  .floating-action-btn:focus {
+    box-shadow: 0 0 15px rgba(108, 142, 219, 0.9);
+    transform: scale(1.1);
+    outline: none;
+  }
+  #accountSettingsBtn {
+    background: #212529;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+  #accountSettingsBtn img {
+    width: 24px;
+    height: 24px;
+    filter: invert(1) brightness(2);
+  }
+
+  /* Main buttons two-column grid */
+  .main-buttons {
+    max-width: 600px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem 1.5rem;
+  }
+
+  /* Keep existing Apple-style button aesthetics for main buttons */
+  .btn-dark.btn-lg {
+    width: 100%;
+    padding: 1.1rem 1.8rem;
+    border-radius: 12px;
+    font-size: 1.2rem;
+    font-weight: 550;
+    letter-spacing: 0.4px;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.25);
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+  .btn-dark.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(108, 142, 219, 0.5);
+  }
+  .btn-dark.btn-lg img {
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
+    filter: invert(100%) brightness(1.3);
+    transition: transform 0.2s ease, filter 0.3s ease;
+  }
+  .btn-dark.btn-lg:hover img {
+    transform: scale(1.15);
+    filter: invert(100%) brightness(2.2);
+  }
+</style>
+
+<div class="d-flex flex-column justify-content-center align-items-center text-center vh-100">
+  <h1 class="mb-4">{{ (APP_INFO.business.name if APP_INFO and APP_INFO.business and APP_INFO.business.name else APP_NAME) }}</h1>
+  {% set _tagline = APP_INFO.business.tagline if APP_INFO and APP_INFO.business and APP_INFO.business.tagline else None %}
+  {% if _tagline %}<p class="lead mb-5">{{ _tagline }}</p>{% else %}<p class="lead mb-5">&nbsp;</p>{% endif %}
+  <div class="main-buttons">
+    <a href="/select_customer" class="btn btn-dark btn-lg">
+      <img src="{{ url_for('static', filename='logos/select_customer.svg') }}" alt="Create New Bill" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      Create New Bill
+    </a>
+    <a href="{{ url_for('bill_drafts') }}" class="btn btn-dark btn-lg">
+      <img src="{{ url_for('static', filename='logos/view_bills.svg') }}" alt="Draft Bills" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      Draft Bills
+    </a>
+    <a href="/create_customers" class="btn btn-dark btn-lg">
+      <img src="{{ url_for('static', filename='logos/create_customers.svg') }}" alt="Add New Customer" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      Add New Customer
+    </a>
+    <a href="/view_bills" class="btn btn-dark btn-lg">
+      <img src="{{ url_for('static', filename='logos/view_bills.svg') }}" alt="View Bills" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      View Bills
+    </a>
+    <a href="/accounting" class="btn btn-dark btn-lg text-center">
+      <img src="{{ url_for('static', filename='logos/accounting.svg') }}" alt="Client Statement" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      Client Statement
+    </a>
+    <a href="{{ url_for('accounting_statement') }}" class="btn btn-dark btn-lg text-center">
+      <img src="{{ url_for('static', filename='logos/statements_company.svg') }}" alt="Company Books" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      Company Books
+    </a>
+    <button type="button" class="btn btn-dark btn-lg text-center" data-bs-toggle="modal" data-bs-target="#recordTxnModal">
+      <img src="{{ url_for('static', filename='logos/all_transactions.svg') }}" alt="Add Transaction" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      Add Transaction
+    </button>
+    <a href="/accounting/transactions" class="btn btn-dark btn-lg text-center">
+      <img src="{{ url_for('static', filename='logos/all_transactions.svg') }}" alt="All Transactions" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      All Transactions
+    </a>
+    <a href="/more" class="btn btn-dark btn-lg">
+      <img src="{{ url_for('static', filename='logos/more.svg') }}" alt="More" width="22" height="22" style="margin-right:8px; vertical-align:middle;">
+      More
+    </a>
+  </div>
+</div>
+
+<div class="floating-action-group">
+  <div class="action-buttons">
+    <a id="accountSettingsBtn"
+       class="floating-action-btn"
+       href="/config"
+       aria-label="Account Settings"
+       title="Account Settings">
+      <img src="{{ url_for('static', filename='logos/config.svg') }}" alt="Account Settings">
+    </a>
+  </div>
+</div>
+
+{% if session and session.get('persistent_notice') %}
+<div class="modal fade" id="persistentNoticeModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Notice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        {# notices are plain user-facing messages; let Jinja autoescape #}
+        {{ session.persistent_notice }}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var noticeModal = new bootstrap.Modal(document.getElementById('persistentNoticeModal'));
+    noticeModal.show();
+  });
+</script>
+{% endif %}
+
+{% include 'partials/accounting_modal.html' %}
+{% include 'partials/accounting_modal_script.html' %}
+
+{% endblock %}

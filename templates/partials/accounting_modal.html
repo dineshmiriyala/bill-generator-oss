@@ -1,0 +1,171 @@
+<style>
+  .accounting-modal-bills-list {
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 0.2rem;
+  }
+  .accounting-modal-bills-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  .accounting-modal-bills-list::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 999px;
+  }
+  @media (max-width: 767.98px) {
+    .accounting-modal-bills-list {
+      max-height: 260px;
+    }
+  }
+</style>
+
+<div class="modal fade" id="recordTxnModal" tabindex="-1" aria-labelledby="recordTxnModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 1rem;">
+      <form method="post" action="{{ url_for('accounting_dashboard') }}">
+        <input type="hidden" name="next_url" value="{{ modal_next_url or request.path }}">
+        <input type="hidden" id="businessExpenseId" value="{{ business_expense_id or '' }}">
+        <div class="modal-header border-0">
+          <h5 class="modal-title fw-semibold" id="recordTxnModalLabel">Record Payment / Expense</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label d-block">Transaction Type</label>
+                <div class="btn-group w-100 apple-toggle" role="group">
+                  <input type="radio" class="btn-check" name="txn_type" id="txnTypeIncome" value="income" autocomplete="off" checked>
+                  <label class="btn btn-outline-dark" for="txnTypeIncome"><span>Payment</span></label>
+                  <input type="radio" class="btn-check" name="txn_type" id="txnTypeExpense" value="expense" autocomplete="off">
+                  <label class="btn btn-outline-dark" for="txnTypeExpense"><span>Expense</span></label>
+                </div>
+              </div>
+
+              <div class="mb-3" data-block="customer-fields">
+                <label class="form-label">Customer</label>
+                <select class="form-select" name="customer_id" id="customerSelect">
+                  <option value="">Select customer</option>
+                  {% for cust in customers %}
+                    <option value="{{ cust.id }}"
+                            {% if preset_customer_id and cust.id == preset_customer_id %}selected{% endif %}
+                            {% if business_expense_id and cust.id == business_expense_id %}data-business-option="true"{% endif %}>
+                      {{ cust.name }}{% if cust.company %} — {{ cust.company }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Transaction Date</label>
+                <input type="date" name="txn_date" class="form-control" id="txnDateInput" aria-describedby="txnDateHelp">
+                <small class="text-muted" id="txnDateHelp">Defaults to today; pick another date to back date this entry.</small>
+              </div>
+
+              <div class="mb-2">
+                <label class="form-label">Amount</label>
+                <input type="number" name="amount" step="0.01" min="0" class="form-control" required id="amountInput">
+                <small class="text-muted" id="amountInWords">Zero Rupees Only</small>
+              </div>
+
+              <div class="mb-3">
+                <div class="border rounded px-3 py-2 bg-light-subtle" id="projectedBalanceBox">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="text-muted small">New Balance</div>
+                      <div id="projectedBalance" class="fw-semibold">INR 0.00</div>
+                    </div>
+                    <div id="fillBalanceActions">
+                      <button type="button" class="btn btn-sm btn-outline-primary" id="fillBalanceBtn">Fill Balance</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <div class="border rounded px-3 py-2 bg-light-subtle" id="customerSummaryBox">
+                  <div class="small text-muted" id="customerSummaryTitle">Select a customer to view ledger summary.</div>
+                  <div class="small" id="customerSummaryValues"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="form-label">Mode</label>
+                  <select class="form-select" name="mode">
+                    {% for mode in payment_modes %}
+                      {% set label = mode.upper() if mode == 'upi' else mode|capitalize %}
+                      <option value="{{ mode }}" {% if mode == 'bank' %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <div class="col-md-6">
+                  <label class="form-label">Account</label>
+                  <select class="form-select" name="account">
+                    {% for acct in account_options %}
+                      <option value="{{ acct }}" {% if acct == 'current' %}selected{% endif %}>{{ acct|capitalize }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label">Remarks</label>
+                <textarea class="form-control" rows="3" name="remarks" placeholder="Notes or references"></textarea>
+              </div>
+
+              <div class="mb-3">
+                <div class="border rounded px-3 py-3 bg-light-subtle d-none" id="customerBillsPane" data-loaded-customer="">
+                  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+                    <div>
+                      <div class="text-muted small">Bills</div>
+                      <div class="fw-semibold">Load Customer Bills</div>
+                      <div class="small text-muted" id="customerBillsHelp">Select a customer to load bills.</div>
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                      <button type="button" class="btn btn-sm btn-outline-primary d-none" id="loadCustomerBillsBtn">Load Customer Bills</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="selectAllCustomerBillsBtn">Select All</button>
+                    </div>
+                  </div>
+                  <div id="customerBillsState" class="small text-muted">No customer selected.</div>
+                  <div id="customerBillsList" class="accounting-modal-bills-list d-grid gap-2 mt-3 d-none"></div>
+                </div>
+              </div>
+
+              <div id="expenseItemsWrapper" class="mb-3 d-none">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <label class="form-label mb-0">Expense Items</label>
+                  <button type="button" class="btn btn-sm btn-outline-primary" id="addExpenseRow">Add Item</button>
+                </div>
+                <div id="expenseItemsRepeater"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer border-0">
+          <button type="button" class="btn btn-light rounded-pill" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary rounded-pill px-4">Save Transaction</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<template id="expenseRowTemplate">
+  <div class="row g-2 align-items-end expense-item-row mb-2">
+    <div class="col-7">
+      <label class="form-label small text-muted">Description</label>
+      <input type="text" class="form-control" name="expense_desc[]" placeholder="e.g., Paper stock">
+    </div>
+    <div class="col-4">
+      <label class="form-label small text-muted">Amount</label>
+      <input type="number" class="form-control" step="0.01" name="expense_amount[]" placeholder="0.00">
+    </div>
+    <div class="col-1 text-end">
+      <button type="button" class="btn btn-outline-danger btn-sm remove-expense-row">&times;</button>
+    </div>
+  </div>
+</template>

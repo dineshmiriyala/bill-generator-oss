@@ -1,0 +1,586 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+  .accounting-customer-shell {
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+  .accounting-customer-card {
+    border: 1px solid rgba(27, 78, 160, 0.10);
+    border-radius: 28px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+  }
+  .accounting-customer-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.76rem;
+    color: #6b7a90;
+    font-weight: 700;
+  }
+  .accounting-summary-card {
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    border-radius: 24px;
+    padding: 1.4rem;
+    background: #fff;
+    box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+  }
+  .accounting-summary-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    font-weight: 700;
+  }
+  .accounting-scroll-pane {
+    max-height: 720px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+  .accounting-scroll-pane::-webkit-scrollbar {
+    width: 8px;
+  }
+  .accounting-scroll-pane::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.55);
+    border-radius: 999px;
+  }
+  .accounting-invoice-entry,
+  .accounting-txn-entry {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 22px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+  }
+  .accounting-invoice-summary,
+  .accounting-txn-summary {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    padding: 1rem 1.1rem;
+  }
+  .accounting-invoice-summary:hover,
+  .accounting-txn-summary:hover {
+    background: rgba(248, 250, 252, 0.8);
+  }
+  .accounting-invoice-meta,
+  .accounting-txn-meta {
+    color: #6b7280;
+    font-size: 0.92rem;
+  }
+  .accounting-invoice-details,
+  .accounting-txn-details {
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    background: rgba(248, 250, 252, 0.72);
+    padding: 1rem 1.1rem 1.15rem;
+  }
+  .accounting-invoice-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0 1.1rem 1rem;
+    flex-wrap: wrap;
+  }
+  .accounting-inline-form {
+    margin: 0;
+  }
+  .accounting-item-table {
+    width: 100%;
+    min-width: 520px;
+  }
+  .accounting-item-table th {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    padding: 0.5rem 0.45rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .accounting-item-table td {
+    padding: 0.65rem 0.45rem;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    vertical-align: top;
+  }
+  .accounting-item-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .accounting-txn-grid {
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .accounting-detail-label {
+    display: block;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+  }
+  .accounting-note {
+    border: 1px dashed rgba(15, 23, 42, 0.12);
+    border-radius: 20px;
+    padding: 1rem 1.1rem;
+    background: rgba(248, 250, 252, 0.9);
+    color: #475569;
+  }
+  .accounting-empty {
+    border: 1px dashed rgba(15, 23, 42, 0.15);
+    border-radius: 22px;
+    background: rgba(248, 250, 252, 0.72);
+    padding: 2.5rem 1.4rem;
+    text-align: center;
+    color: #64748b;
+  }
+  .accounting-section-plus {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  @media (max-width: 991.98px) {
+    .accounting-scroll-pane {
+      max-height: none;
+    }
+  }
+  @media (max-width: 575.98px) {
+    .accounting-txn-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<div class="container-fluid py-4">
+  <div class="accounting-customer-shell" data-accounting-customer-page="{{ accounting_customer.id }}">
+    <section class="accounting-customer-card p-4 p-lg-5 mb-4">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+          <p class="accounting-customer-eyebrow mb-2">Customer Accounting</p>
+          <h2 class="fw-semibold mb-2">{{ accounting_customer.name }}</h2>
+          <p class="text-muted mb-1">
+            {% if accounting_customer.company %}{{ accounting_customer.company }}{% else %}No company name{% endif %}
+          </p>
+          <p class="text-muted mb-0">
+            {% if accounting_customer.phone %}{{ accounting_customer.phone }}{% else %}No phone saved{% endif %}
+          </p>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('accounting_dashboard') }}" class="btn btn-outline-secondary">Back to Accounting</a>
+          <button
+            class="btn btn-outline-primary"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#accountingDateFilter"
+            aria-expanded="{{ 'true' if filters.active else 'false' }}"
+            aria-controls="accountingDateFilter"
+          >
+            Date Filter
+          </button>
+          <a href="{{ simple_print_url }}" target="_blank" class="btn btn-outline-dark">Simple Statement</a>
+          <a href="{{ print_url }}" target="_blank" class="btn btn-primary">Print / Save PDF</a>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+        <span class="badge rounded-pill text-bg-light px-3 py-2">{{ filters.label }}</span>
+        <span class="small text-muted">{{ summary.invoice_count }} bills · {{ summary.transaction_count }} transactions</span>
+      </div>
+
+      <div class="collapse {% if filters.active %}show{% endif %} mt-4" id="accountingDateFilter">
+        <form method="get" class="row g-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label text-muted small text-uppercase">Start Date</label>
+            <input type="date" class="form-control" name="start" value="{{ filters.start }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label text-muted small text-uppercase">End Date</label>
+            <input type="date" class="form-control" name="end" value="{{ filters.end }}">
+          </div>
+          <div class="col-md-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">Apply</button>
+            <a href="{{ url_for('accounting_customer_detail', customer_id=accounting_customer.id) }}" class="btn btn-outline-secondary">All Time</a>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="accounting-summary-card h-100">
+          <div class="accounting-summary-label mb-2">Balance Due</div>
+          <h3
+            class="fw-semibold mb-1 {{ 'text-danger' if summary.balance_due > 0 else 'text-success' }}"
+            data-accounting-summary="balance_due"
+            data-value="{{ '%.2f'|format(summary.balance_due) }}"
+          >
+            INR {{ summary.balance_due|inr }}
+          </h3>
+          <div class="small text-muted">
+            {% if summary.balance_due > 0 %}
+              Amount still pending from this customer.
+            {% else %}
+              No due amount in the current view.
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="accounting-summary-card h-100">
+          <div class="accounting-summary-label mb-2">Already Paid</div>
+          <h3 class="fw-semibold text-success mb-1" data-accounting-summary="total_paid" data-value="{{ '%.2f'|format(summary.total_paid) }}">
+            INR {{ summary.total_paid|inr }}
+          </h3>
+          <div class="small text-muted">Income transactions recorded for this customer.</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="accounting-summary-card h-100">
+          <div class="accounting-summary-label mb-2">Total Invoiced</div>
+          <h3 class="fw-semibold mb-1" data-accounting-summary="total_invoiced" data-value="{{ '%.2f'|format(summary.total_invoiced) }}">
+            INR {{ summary.total_invoiced|inr }}
+          </h3>
+          <div class="small text-muted">All visible bills in the current date range.</div>
+        </div>
+      </div>
+    </div>
+
+    {% if summary.total_expenses > 0 or summary.credit_amount > 0 %}
+    <div class="accounting-note mb-4">
+      {% if summary.total_expenses > 0 %}
+      <div>Outgoing entries included in this balance: INR {{ summary.total_expenses|inr }}</div>
+      {% endif %}
+      {% if summary.credit_amount > 0 %}
+      <div>Customer is ahead by INR {{ summary.credit_amount|inr }} in the current view.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="row g-4 align-items-start">
+      <div class="col-lg-5">
+        <section class="accounting-customer-card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <div>
+              <p class="accounting-customer-eyebrow mb-1">Invoices</p>
+              <h4 class="fw-semibold mb-1">Bills</h4>
+              <p class="text-muted mb-0 small">Click a bill to open its full item details.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge rounded-pill text-bg-light px-3 py-2">{{ invoice_history|length }}</span>
+              <a
+                href="{{ url_for('start_bill', customer_id=accounting_customer.id) }}"
+                class="btn btn-outline-primary accounting-section-plus"
+                title="Create new bill"
+                aria-label="Create new bill"
+              >
+                +
+              </a>
+            </div>
+          </div>
+
+          {% if invoice_history %}
+          <div class="accounting-scroll-pane d-grid gap-3">
+            {% for entry in invoice_history %}
+            <div class="accounting-invoice-entry" data-accounting-invoice="{{ entry.invoice_no }}">
+              <button
+                type="button"
+                class="accounting-invoice-summary"
+                data-accounting-invoice-toggle="{{ entry.invoice_no }}"
+                data-accounting-invoice-target="accounting-invoice-details-{{ entry.invoice_no }}"
+                aria-controls="accounting-invoice-details-{{ entry.invoice_no }}"
+                aria-expanded="false"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+                  <div>
+                    <div class="fw-semibold fs-5">{{ entry.invoice_no }}</div>
+                    <div class="accounting-invoice-meta">{{ entry.created_at | datetimeformat('%d %b %Y') }}</div>
+                  </div>
+                  {% if entry.is_paid %}
+                  <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Paid</span>
+                  {% else %}
+                  <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2">Pending</span>
+                  {% endif %}
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                  <div class="fw-semibold">INR {{ entry.total_amount|inr }}</div>
+                  <div class="accounting-invoice-meta">{{ entry.item_count }} item{{ '' if entry.item_count == 1 else 's' }}</div>
+                </div>
+              </button>
+
+              <div class="accounting-invoice-actions">
+                <a href="{{ url_for('view_bill_locked', invoicenumber=entry.invoice_no) }}" class="btn btn-link btn-sm p-0">Open Bill</a>
+                {% if entry.is_paid %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Paid</span>
+                {% else %}
+                <form method="POST" action="{{ url_for('mark_bill_paid', invoice_no=entry.invoice_no) }}" class="accounting-inline-form">
+                  <input type="hidden" name="next" value="{{ mark_paid_redirect }}">
+                  <input type="hidden" name="source" value="accounting_customer">
+                  <button type="submit" class="btn btn-outline-success btn-sm">Mark as Paid</button>
+                </form>
+                {% endif %}
+              </div>
+
+              <div class="accounting-invoice-details d-none" id="accounting-invoice-details-{{ entry.invoice_no }}">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-3">
+                  <div class="small text-muted">Invoice items</div>
+                  <span class="small text-muted">Full item details</span>
+                </div>
+                <div class="table-responsive" data-accounting-items-body>
+                  <div class="text-center text-muted small py-3">Click this bill to load item details.</div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="accounting-empty">
+            <strong>No bills to show.</strong>
+            <div class="small mt-2">This customer has no bills in the current date range.</div>
+          </div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div class="col-lg-7">
+        <section class="accounting-customer-card p-4 h-100">
+          <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <div>
+              <p class="accounting-customer-eyebrow mb-1">Transactions</p>
+              <h4 class="fw-semibold mb-1">Payments & Entries</h4>
+              <p class="text-muted mb-0 small">Open a row to see full transaction details.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge rounded-pill text-bg-light px-3 py-2">{{ transactions|length }}</span>
+              <button
+                type="button"
+                class="btn btn-outline-primary accounting-section-plus"
+                data-bs-toggle="modal"
+                data-bs-target="#recordTxnModal"
+                title="Record new transaction"
+                aria-label="Record new transaction"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          {% if transactions %}
+          <div class="accounting-scroll-pane d-grid gap-3">
+            {% for txn in transactions %}
+            <div class="accounting-txn-entry" data-accounting-transaction="{{ txn.id }}">
+              <button
+                type="button"
+                class="accounting-txn-summary"
+                data-accounting-txn-toggle="{{ txn.id }}"
+                data-accounting-txn-target="accounting-txn-details-{{ txn.id }}"
+                aria-controls="accounting-txn-details-{{ txn.id }}"
+                aria-expanded="false"
+              >
+                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                  <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                      <strong>{{ txn.created_at | datetimeformat('%d %b %Y') }}</strong>
+                      <span class="badge {{ 'bg-success-subtle text-success' if txn.txn_type == 'income' else 'bg-danger-subtle text-danger' }} rounded-pill">
+                        {{ txn.txn_type|capitalize }}
+                      </span>
+                    </div>
+                    <div class="accounting-txn-meta">
+                      {{ (txn.mode or '—')|upper }}
+                      {% if txn.invoice_no %} · Invoice {{ txn.invoice_no }}{% endif %}
+                    </div>
+                  </div>
+                  <div class="text-end">
+                    <div class="fw-semibold {{ 'text-success' if txn.txn_type == 'income' else 'text-danger' }}">
+                      INR {{ txn.amount|inr }}
+                    </div>
+                    <div class="accounting-txn-meta">{{ (txn.account or '—')|capitalize }}</div>
+                  </div>
+                </div>
+              </button>
+
+              <div class="accounting-txn-details d-none" id="accounting-txn-details-{{ txn.id }}">
+                <div class="accounting-txn-grid mb-3">
+                  <div>
+                    <span class="accounting-detail-label">Transaction ID</span>
+                    <strong>{{ txn.txn_id }}</strong>
+                  </div>
+                  <div>
+                    <span class="accounting-detail-label">Created Time</span>
+                    <strong>{{ txn.created_at | datetimeformat('%d %b %Y %H:%M') }}</strong>
+                  </div>
+                  <div>
+                    <span class="accounting-detail-label">Mode</span>
+                    <strong>{{ (txn.mode or '—')|capitalize }}</strong>
+                  </div>
+                  <div>
+                    <span class="accounting-detail-label">Account</span>
+                    <strong>{{ (txn.account or '—')|capitalize }}</strong>
+                  </div>
+                  <div>
+                    <span class="accounting-detail-label">Invoice</span>
+                    <strong>{{ txn.invoice_no or '—' }}</strong>
+                  </div>
+                  <div>
+                    <span class="accounting-detail-label">Customer</span>
+                    <strong>{{ txn.customer.name if txn.customer else accounting_customer.name }}</strong>
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <span class="accounting-detail-label">Remarks</span>
+                  <div class="text-muted">{{ txn.remarks or 'No remarks added.' }}</div>
+                </div>
+
+                {% if txn.expense_items %}
+                <div class="mb-3">
+                  <span class="accounting-detail-label">Expense Items</span>
+                  <div class="list-group">
+                    {% for item in txn.expense_items %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                      <span>{{ item.description }}</span>
+                      <strong>{% if item.amount is not none %}INR {{ item.amount|inr }}{% else %}—{% endif %}</strong>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
+
+                <a href="{{ url_for('accounting_transaction_detail', txn_id=txn.id) }}" class="btn btn-outline-secondary btn-sm">
+                  Open Transaction
+                </a>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <div class="accounting-empty">
+            <strong>No transactions to show.</strong>
+            <div class="small mt-2">Payments and expenses for this customer will appear here.</div>
+          </div>
+          {% endif %}
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include 'partials/accounting_modal.html' %}
+{% include 'partials/accounting_modal_script.html' %}
+
+<script>
+  (function() {
+    const invoiceToggles = document.querySelectorAll('[data-accounting-invoice-toggle]');
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function renderInvoiceItems(items) {
+      if (!items.length) {
+        return '<div class="text-center text-muted small py-3">No item details found.</div>';
+      }
+
+      const rows = items.map((item) => `
+        <tr>
+          <td>${escapeHtml(item.name || '')}</td>
+          <td class="text-end">${item.quantity ?? ''}</td>
+          <td class="text-end">INR ${Number(item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td class="text-end">${Number(item.tax || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
+          <td class="text-end">INR ${Number(item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <table class="table table-sm mb-0 accounting-item-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th class="text-end">Qty</th>
+              <th class="text-end">Unit Price</th>
+              <th class="text-end">Tax</th>
+              <th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    invoiceToggles.forEach((toggle) => {
+      toggle.addEventListener('click', async () => {
+        const invoiceNo = toggle.dataset.accountingInvoiceToggle;
+        const targetId = toggle.dataset.accountingInvoiceTarget;
+        const details = document.getElementById(targetId);
+        if (!details) return;
+
+        invoiceToggles.forEach((otherToggle) => {
+          const otherDetails = document.getElementById(otherToggle.dataset.accountingInvoiceTarget);
+          if (!otherDetails || otherToggle === toggle) return;
+          otherDetails.classList.add('d-none');
+          otherToggle.setAttribute('aria-expanded', 'false');
+        });
+
+        const isOpen = !details.classList.contains('d-none');
+        if (isOpen) {
+          details.classList.add('d-none');
+          toggle.setAttribute('aria-expanded', 'false');
+          return;
+        }
+
+        details.classList.remove('d-none');
+        toggle.setAttribute('aria-expanded', 'true');
+
+        const body = details.querySelector('[data-accounting-items-body]');
+        if (!body || body.dataset.loaded === 'true') return;
+
+        body.innerHTML = '<div class="text-center text-muted small py-3">Loading item details...</div>';
+
+        try {
+          const response = await fetch(`/api/bill_items/${encodeURIComponent(invoiceNo)}`);
+          if (!response.ok) throw new Error('Unable to load invoice items');
+          const payload = await response.json();
+          body.innerHTML = renderInvoiceItems(payload.items || []);
+          body.dataset.loaded = 'true';
+        } catch (error) {
+          body.innerHTML = '<div class="text-center text-danger small py-3">Unable to load item details.</div>';
+        }
+      });
+    });
+
+    const txnToggles = document.querySelectorAll('[data-accounting-txn-toggle]');
+    txnToggles.forEach((toggle) => {
+      toggle.addEventListener('click', () => {
+        const targetId = toggle.dataset.accountingTxnTarget;
+        const details = document.getElementById(targetId);
+        if (!details) return;
+
+        txnToggles.forEach((otherToggle) => {
+          const otherDetails = document.getElementById(otherToggle.dataset.accountingTxnTarget);
+          if (!otherDetails || otherToggle === toggle) return;
+          otherDetails.classList.add('d-none');
+          otherToggle.setAttribute('aria-expanded', 'false');
+        });
+
+        const shouldOpen = details.classList.contains('d-none');
+        details.classList.toggle('d-none', !shouldOpen);
+        toggle.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+      });
+    });
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% macro sort_link(label, field) %}
+  {% set is_active = current_sort == field %}
+  {% if is_active %}
+    {% set icon = '↑' if current_dir == 'asc' else '↓' %}
+    {% set next_dir = 'desc' if current_dir == 'asc' else 'asc' %}
+  {% else %}
+    {% set icon = '' %}
+    {% set next_dir = 'desc' %}
+  {% endif %}
+  <a href="{{ url_for('accounting_transactions_list', sort=field, dir=next_dir, customer=filter_customer, date=filter_date, amount=filter_amount) }}"
+     class="text-decoration-none text-muted fw-semibold">
+    {{ label }}{% if icon %}<span class="ms-1">{{ icon }}</span>{% endif %}
+  </a>
+{% endmacro %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h2 class="fw-semibold mb-0">All Transactions</h2>
+      <p class="text-muted mb-0">Payments and expenses recorded in the ledger.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('accounting_dashboard') }}" class="btn btn-outline-secondary btn-sm">← Accounting Dashboard</a>
+      <a href="{{ url_for('accounting_statement', export='pdf') }}" target="_blank" class="btn btn-outline-primary btn-sm">Print / Save PDF</a>
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#recordTxnModal">Record New</button>
+    </div>
+  </div>
+
+  <form class="card shadow-sm border-0 mb-4" method="get">
+    <div class="card-body row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label text-muted small text-uppercase">Customer / Txn ID</label>
+        <input type="text" class="form-control" name="customer" value="{{ filter_customer }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-muted small text-uppercase">Date</label>
+        <input type="date" class="form-control" name="date" value="{{ filter_date }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label text-muted small text-uppercase">Amount</label>
+        <input type="number" step="0.01" class="form-control" name="amount" value="{{ filter_amount }}">
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-primary">Search</button>
+      </div>
+      <input type="hidden" name="sort" value="{{ current_sort }}">
+      <input type="hidden" name="dir" value="{{ current_dir }}">
+    </div>
+  </form>
+
+  {% if transactions %}
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead class="table-light text-muted text-uppercase small">
+              <tr>
+                <th>{{ sort_link('Txn ID', 'id') }}</th>
+                <th>{{ sort_link('Type', 'type') }}</th>
+                <th>Customer / Invoice</th>
+                <th>Mode / Account</th>
+                <th class="text-end">{{ sort_link('Amount', 'amount') }}</th>
+                <th>{{ sort_link('Date', 'date') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for txn in transactions %}
+                <tr>
+                  <td class="fw-semibold">{{ txn.txn_id }}</td>
+                  <td>
+                    <span class="badge {{ 'bg-success-subtle text-success' if txn.txn_type == 'income' else 'bg-danger-subtle text-danger' }}">
+                      {{ txn.txn_type|capitalize }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if txn.customer %}
+                      <div>{{ txn.customer.name }}</div>
+                      {% if txn.customer.company %}
+                        <small class="text-muted">{{ txn.customer.company }}</small>
+                      {% endif %}
+                    {% else %}
+                      <div class="text-muted">—</div>
+                    {% endif %}
+                    {% if txn.invoice_no %}
+                      <small class="text-muted d-block">Invoice: {{ txn.invoice_no }}</small>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="text-capitalize">{{ txn.mode or '—' }}</div>
+                    <small class="text-muted text-capitalize">{{ txn.account or '—' }}</small>
+                  </td>
+                  <td class="text-end {{ 'text-success' if txn.txn_type == 'income' else 'text-danger' }}">
+                    INR {{ txn.amount|inr }}
+                  </td>
+                  <td>{{ txn.created_at | datetimeformat('%d %b %Y') }}</td>
+                  <td class="text-end">
+                    <a href="{{ url_for('accounting_transaction_detail', txn_id=txn.id) }}" class="btn btn-sm btn-outline-secondary">Details</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% else %}
+    <div class="text-center text-muted py-5">
+      <p class="mb-0">No transactions recorded yet.</p>
+    </div>
+  {% endif %}
+</div>
+
+{% include 'partials/accounting_modal.html' %}
+{% include 'partials/accounting_modal_script.html' %}
+{% endblock %}

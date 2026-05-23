@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  {% if session.persistent_notice %}
+    <div class="alert alert-success alert-dismissible fade show shadow-sm rounded-4 border-0 mb-4" role="alert" data-auto-dismiss-ms="4000">
+      <strong>{{ session.persistent_notice }}</strong>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      {% set _ = session.pop('persistent_notice') %}
+    </div>
+  {% endif %}
+
+  <div class="row g-4 align-items-start">
+    <div class="col-lg-4">
+      <div class="card shadow-sm border-0 rounded-4 view-bill-nav-panel">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+              <div class="text-muted text-uppercase small fw-semibold">History</div>
+              <h5 class="mb-1">Customer Bills</h5>
+              <p class="text-muted small mb-0">Newest first. Open any other bill from here.</p>
+            </div>
+            <span class="badge rounded-pill text-bg-light px-3 py-2">{{ customer_bill_navigation|length }}</span>
+          </div>
+
+          <div class="d-flex flex-column gap-3 view-bill-nav-scroll">
+            {% for bill in customer_bill_navigation %}
+              {% if bill.is_current %}
+              <div
+                class="card rounded-4 border view-bill-nav-card view-bill-nav-card-current"
+                data-view-bill-nav="{{ bill.invoice_no }}"
+                data-current="true"
+              >
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                    <div>
+                      <div class="fw-semibold">{{ bill.invoice_no }}</div>
+                      <div class="text-muted small">{{ bill.created_at | datetimeformat('%d %b %Y') }}</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
+                      <span class="badge rounded-pill text-bg-primary">Current Bill</span>
+                      {% if bill.is_paid %}
+                      <span class="badge rounded-pill text-bg-success">Paid</span>
+                      {% else %}
+                      <span class="badge rounded-pill text-bg-warning">Pending</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+                    <div>
+                      <div class="text-muted small">Amount</div>
+                      <div class="fw-semibold">INR {{ '%.2f' | format(bill.total_amount) }}</div>
+                    </div>
+                    <div class="text-muted small text-end">{{ bill.item_count }} item{{ '' if bill.item_count == 1 else 's' }}</div>
+                  </div>
+                </div>
+              </div>
+              {% else %}
+              <a
+                href="{{ url_for('view_bill_locked', invoicenumber=bill.invoice_no) }}"
+                class="card rounded-4 border text-decoration-none view-bill-nav-card view-bill-nav-card-link"
+                data-view-bill-nav="{{ bill.invoice_no }}"
+                data-current="false"
+              >
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                    <div>
+                      <div class="fw-semibold text-dark">{{ bill.invoice_no }}</div>
+                      <div class="text-muted small">{{ bill.created_at | datetimeformat('%d %b %Y') }}</div>
+                    </div>
+                    {% if bill.is_paid %}
+                    <span class="badge rounded-pill text-bg-success">Paid</span>
+                    {% else %}
+                    <span class="badge rounded-pill text-bg-warning">Pending</span>
+                    {% endif %}
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+                    <div>
+                      <div class="text-muted small">Amount</div>
+                      <div class="fw-semibold text-dark">INR {{ '%.2f' | format(bill.total_amount) }}</div>
+                    </div>
+                    <div class="text-primary small fw-semibold">Open bill</div>
+                  </div>
+                </div>
+              </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+
+          <div class="view-bill-new-bill-panel pt-3 mt-3">
+            <div class="text-muted text-uppercase small fw-semibold">Create New Bill</div>
+            <div class="d-flex gap-2 flex-wrap mt-2">
+              <a class="btn btn-success btn-sm shadow-sm" href="{{ url_for('start_bill', customer_id=customer_id) }}">Same Customer</a>
+              <a class="btn btn-outline-primary btn-sm shadow-sm" href="{{ url_for('select_customer') }}">Other Customer</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+            <div>
+              <div class="text-muted text-uppercase small fw-semibold">Bill Detail</div>
+              <h2 class="fw-semibold mb-1">View Bill</h2>
+              <div class="text-muted">Invoice No: <strong>{{ invoice_no }}</strong></div>
+              {% if invoice_date %}
+              <div class="text-muted small mt-1">Dated {{ invoice_date | datetimeformat }}</div>
+              {% endif %}
+            </div>
+            <div class="text-end">
+              {% if is_paid %}
+              <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Paid</span>
+              {% else %}
+              <span class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2">Pending Payment</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="d-flex gap-2 flex-wrap view-bill-top-actions">
+            <a class="btn btn-warning btn-sm shadow-sm" href="{{ url_for('edit_bill', invoicenumber=invoice_no) }}">Edit</a>
+            <form method="POST" action="{{ url_for('duplicate_bill_as_draft', invoice_no=invoice_no) }}" class="d-inline">
+              <button type="submit" class="btn btn-outline-primary btn-sm shadow-sm">Duplicate as Draft</button>
+            </form>
+            <form id="deleteForm" method="POST" action="{{ url_for('delete_bill', invoicenumber=invoice_no) }}" class="d-inline">
+              <input type="hidden" name="next" id="nextField" value="">
+              <button type="submit" class="btn btn-danger btn-sm shadow-sm">Delete</button>
+            </form>
+            {% if is_paid %}
+              <span class="btn btn-success btn-sm shadow-sm disabled">Paid</span>
+            {% else %}
+              <form method="POST" action="{{ url_for('mark_bill_paid', invoice_no=invoice_no) }}" class="d-inline">
+                <input type="hidden" name="source" value="view_bill_locked">
+                <input type="hidden" name="next" value="{{ mark_paid_redirect }}">
+                <button type="submit" class="btn btn-success btn-sm shadow-sm">Mark as Paid</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-4 mb-4">
+        <div class="col-xl-7">
+          <div class="card shadow-sm border-0 rounded-4 h-100">
+            <div class="card-body p-4">
+              <div class="text-muted text-uppercase small fw-semibold mb-1">Customer</div>
+              <h5 class="mb-3">Customer Details</h5>
+
+              <div class="view-bill-summary-grid">
+                <div class="view-bill-summary-field">
+                  <span class="view-bill-summary-label">Customer Name</span>
+                  <div class="view-bill-summary-value">{{ customer.name or '—' }}</div>
+                </div>
+                <div class="view-bill-summary-field">
+                  <span class="view-bill-summary-label">Company</span>
+                  <div class="view-bill-summary-value">{{ customer.company or '—' }}</div>
+                </div>
+                <div class="view-bill-summary-field">
+                  <span class="view-bill-summary-label">Phone/ID</span>
+                  <div class="view-bill-summary-value">{{ customer.phone or '—' }}</div>
+                </div>
+                <div class="view-bill-summary-field">
+                  <span class="view-bill-summary-label">GST</span>
+                  <div class="view-bill-summary-value">{{ customer.gst or '—' }}</div>
+                </div>
+                <div class="view-bill-summary-field view-bill-summary-field-wide">
+                  <span class="view-bill-summary-label">Address</span>
+                  <div class="view-bill-summary-value">{{ customer.address or '—' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-5">
+          <div class="card shadow-sm border-0 rounded-4 h-100 view-bill-total-card">
+            <div class="card-body p-4 d-flex flex-column justify-content-between">
+              <div>
+                <div class="text-muted text-uppercase small fw-semibold mb-1">Summary</div>
+                <h5 class="mb-3">Bill Summary</h5>
+
+                <div class="view-bill-summary-stack">
+                  <div class="d-flex justify-content-between align-items-center gap-3">
+                    <span class="text-muted">Items</span>
+                    <strong>{{ descriptions|length }}</strong>
+                  </div>
+                  <div class="d-flex justify-content-between align-items-center gap-3">
+                    <span class="text-muted">Delivery Challan</span>
+                    <strong>{{ 'Included' if dcno else 'Not used' }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="view-bill-total-shell mt-4">
+                <div class="text-muted text-uppercase small fw-semibold">Total Amount</div>
+                <div class="view-bill-total-amount">INR {{ '%.2f' | format(total) }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+          <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
+            <div>
+              <div class="text-muted text-uppercase small fw-semibold mb-1">Items</div>
+              <h5 class="mb-1">Invoice Items</h5>
+              <p class="text-muted small mb-0">All line items recorded for this bill.</p>
+            </div>
+          </div>
+
+          <div class="table-responsive shadow-sm rounded-4 border overflow-hidden">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:6rem;">Serial No</th>
+                  <th>Description</th>
+                  {% if dcno %}<th>Delivery Challan No</th>{% endif %}
+                  <th style="width:10rem;">Quantity</th>
+                  <th style="width:10rem;">Rate</th>
+                  <th style="width:12rem;" class="text-end">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for desc, qty, rate in zip(descriptions, quantities, rates) %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td>{{ desc }}</td>
+                  {% if dcno %}
+                  <td>{{ dc_numbers[loop.index0] if dc_numbers is defined and dc_numbers|length > loop.index0 else '' }}</td>
+                  {% endif %}
+                  <td>{{ '%.2f' | format(qty) }}</td>
+                  <td>{{ '%.2f' | format(rate) }}</td>
+                  <td class="text-end">{{ '%.2f' | format(line_totals[loop.index0]) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th colspan="{% if dcno %}5{% else %}4{% endif %}" class="text-end">Total</th>
+                  <th class="text-end">{{ '%.2f' | format(total) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 flex-wrap mt-4 view-bill-bottom-actions">
+            <a class="btn btn-outline-primary shadow-sm px-4" href="{{ url_for('bill_preview_dues', invoicenumber=invoice_no) }}">Bill with Dues</a>
+            <a class="btn btn-primary shadow-sm px-4" target="_blank" href="{{ url_for('bill_preview', invoicenumber=invoice_no) }}">Print Bill</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .view-bill-nav-panel {
+    position: sticky;
+    top: 1.5rem;
+  }
+
+  .view-bill-nav-scroll {
+    max-height: min(36rem, calc(4 * 9rem));
+    overflow-y: auto;
+    padding-right: 0.25rem;
+  }
+
+  .view-bill-nav-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .view-bill-nav-card-link:hover {
+    border-color: rgba(13, 110, 253, 0.35);
+    box-shadow: 0 8px 18px rgba(13, 110, 253, 0.08);
+    transform: translateY(-1px);
+  }
+
+  .view-bill-nav-card-current {
+    border-color: rgba(13, 110, 253, 0.45);
+    background: rgba(13, 110, 253, 0.06);
+    box-shadow: 0 8px 18px rgba(13, 110, 253, 0.08);
+  }
+
+  .view-bill-new-bill-panel {
+    border-top: 1px solid rgba(33, 37, 41, 0.08);
+  }
+
+  .view-bill-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+  }
+
+  .view-bill-summary-field {
+    min-width: 0;
+  }
+
+  .view-bill-summary-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .view-bill-summary-label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6c757d;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+  }
+
+  .view-bill-summary-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #212529;
+    word-break: break-word;
+  }
+
+  .view-bill-summary-stack {
+    display: grid;
+    gap: 0.85rem;
+  }
+
+  .view-bill-total-card {
+    background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+  }
+
+  .view-bill-total-shell {
+    border-top: 1px solid rgba(13, 110, 253, 0.12);
+    padding-top: 1rem;
+  }
+
+  .view-bill-total-amount {
+    font-size: clamp(1.8rem, 3vw, 2.35rem);
+    line-height: 1.1;
+    font-weight: 700;
+    color: #0d6efd;
+    margin-top: 0.35rem;
+  }
+
+  .view-bill-bottom-actions .btn {
+    min-width: 170px;
+  }
+
+  .view-bill-top-actions {
+    gap: 0.5rem !important;
+  }
+
+  @media (max-width: 991.98px) {
+    .view-bill-nav-panel {
+      position: static;
+    }
+
+    .view-bill-nav-scroll {
+      max-height: none;
+      overflow: visible;
+      padding-right: 0;
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .view-bill-summary-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  (function(){
+    const form = document.getElementById('deleteForm');
+    const nextField = document.getElementById('nextField');
+    if (!form || !nextField) return;
+
+    const listFallback = '{{ url_for('select_customer') }}';
+    const ref = document.referrer || '';
+    if (ref.includes('/view_bills')) {
+      nextField.value = ref;
+    } else {
+      nextField.value = listFallback;
+    }
+
+    form.addEventListener('submit', function(e){
+      if (!confirm('Are you sure you want to delete this bill?')) {
+        e.preventDefault();
+      }
+    });
+  })();
+</script>
+{% endblock %}

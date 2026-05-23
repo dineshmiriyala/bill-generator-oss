@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+    <div>
+      <h2 class="fw-semibold mb-1">Company Statement</h2>
+      <p class="text-muted mb-0">
+        {{ APP_INFO.business.name or 'Business' }} · {{ statement_range_label }} · TZ: {{ display_timezone }}
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{{ url_for('accounting_dashboard') }}" class="btn btn-outline-primary btn-sm">Back to Accounting</a>
+      <a href="{{ url_for('accounting_statement', mode=statement_mode) }}" class="btn btn-outline-secondary btn-sm">Clear Dates</a>
+      <a class="btn btn-dark btn-sm" target="_blank"
+         href="{{ url_for('accounting_statement', start=filters.start, end=filters.end, mode=statement_mode, export='pdf') }}">
+        Print / Save PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <div>
+          <label class="form-label text-muted small text-uppercase mb-2 d-block">Statement Type</label>
+          <div class="btn-group">
+            <a
+              href="{{ url_for('accounting_statement', start=filters.start, end=filters.end, mode='simple') }}"
+              class="btn {{ 'btn-primary' if statement_mode == 'simple' else 'btn-outline-primary' }}"
+            >
+              Simple
+            </a>
+            <a
+              href="{{ url_for('accounting_statement', start=filters.start, end=filters.end, mode='accounting') }}"
+              class="btn {{ 'btn-primary' if statement_mode == 'accounting' else 'btn-outline-primary' }}"
+            >
+              Accounting Statement
+            </a>
+          </div>
+        </div>
+        <div class="text-muted small">
+          {% if statement_mode == 'simple' %}
+            Invoice list only. No transactions or ledger blocks.
+          {% else %}
+            Invoice list plus full transaction ledger for the selected dates.
+          {% endif %}
+        </div>
+      </div>
+
+      <form class="row g-3 align-items-end mt-1" method="get">
+        <input type="hidden" name="mode" value="{{ statement_mode }}">
+        <div class="col-6 col-md-4">
+          <label class="form-label text-muted small text-uppercase">Start Date</label>
+          <input type="date" class="form-control" name="start" value="{{ filters.start }}">
+        </div>
+        <div class="col-6 col-md-4">
+          <label class="form-label text-muted small text-uppercase">End Date</label>
+          <input type="date" class="form-control" name="end" value="{{ filters.end }}">
+        </div>
+        <div class="col-md-4 d-grid">
+          <button class="btn btn-primary" type="submit">Apply</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if statement_mode == 'simple' %}
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <h5 class="fw-semibold mb-0">Simple Statement</h5>
+          <small class="text-muted">All invoice amounts in the selected period.</small>
+        </div>
+        <div class="text-md-end">
+          <div class="text-muted text-uppercase small">Grand Total</div>
+          <div class="fw-semibold fs-4">INR {{ statement_invoice_total|inr }}</div>
+        </div>
+      </div>
+      {% if statement_invoices %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light text-muted small text-uppercase">
+            <tr>
+              <th>Invoice</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in statement_invoices %}
+            <tr>
+              <td class="fw-semibold">{{ row.invoice_no }}</td>
+              <td>{{ row.date.strftime('%d %b %Y') }}</td>
+              <td>
+                <div>{{ row.company or row.customer_name or '—' }}</div>
+                {% if row.phone %}
+                <small class="text-muted d-block">{{ row.phone }}</small>
+                {% endif %}
+              </td>
+              <td class="text-end fw-semibold">INR {{ row.total|inr }}</td>
+              <td class="text-end">
+                {% if row.is_paid %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Paid</span>
+                {% else %}
+                <form method="post" action="{{ url_for('mark_bill_paid', invoice_no=row.invoice_no) }}" class="d-inline">
+                  <input type="hidden" name="next" value="{{ mark_paid_redirect }}">
+                  <input type="hidden" name="source" value="accounting_statement">
+                  <button type="submit" class="btn btn-outline-success btn-sm">Mark as Paid</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" class="text-end fw-semibold">Total</td>
+              <td class="text-end fw-bold">INR {{ statement_invoice_total|inr }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No invoices in the selected period.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase small mb-1">Invoices Raised</p>
+          <h4 class="mb-1">INR {{ statement_invoice_total|inr }}</h4>
+          <small class="text-muted">{{ statement_invoice_count }} invoices</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase small mb-1">Payments Received</p>
+          <h4 class="text-success mb-0">INR {{ income_total|inr }}</h4>
+          <small class="text-muted">{{ income_count }} entries</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase small mb-1">Outgoing</p>
+          <h4 class="text-danger mb-0">INR {{ expense_total|inr }}</h4>
+          <small class="text-muted">{{ expense_count }} entries</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card shadow-sm border-0 h-100">
+        <div class="card-body">
+          <p class="text-muted text-uppercase small mb-1">Net Movement</p>
+          <h4 class="{{ 'text-success' if net_flow >= 0 else 'text-danger' }} mb-1">
+            INR {{ net_flow|inr }}
+          </h4>
+          <small class="text-muted">Payments minus outgoing</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+          <h5 class="fw-semibold mb-0">Invoices Raised</h5>
+          <small class="text-muted">Date-filtered invoice list</small>
+        </div>
+      </div>
+      {% if statement_invoices %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light text-muted small text-uppercase">
+            <tr>
+              <th>Invoice</th>
+              <th>Date</th>
+              <th>Customer</th>
+              <th class="text-end">Amount</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in statement_invoices %}
+            <tr>
+              <td class="fw-semibold">{{ row.invoice_no }}</td>
+              <td>{{ row.date.strftime('%d %b %Y') }}</td>
+              <td>
+                <div>{{ row.company or row.customer_name or '—' }}</div>
+                {% if row.phone %}
+                <small class="text-muted d-block">{{ row.phone }}</small>
+                {% endif %}
+              </td>
+              <td class="text-end fw-semibold">INR {{ row.total|inr }}</td>
+              <td class="text-end">
+                {% if row.is_paid %}
+                <span class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Paid</span>
+                {% else %}
+                <form method="post" action="{{ url_for('mark_bill_paid', invoice_no=row.invoice_no) }}" class="d-inline">
+                  <input type="hidden" name="next" value="{{ mark_paid_redirect }}">
+                  <input type="hidden" name="source" value="accounting_statement">
+                  <button type="submit" class="btn btn-outline-success btn-sm">Mark as Paid</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No invoices in the selected period.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-semibold mb-0">All Transactions</h5>
+        <small class="text-muted">Ordered by newest first</small>
+      </div>
+      {% if transactions %}
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead class="table-light text-muted small text-uppercase">
+            <tr>
+              <th>Date</th>
+              <th>Txn ID</th>
+              <th>Type</th>
+              <th>Customer / Invoice</th>
+              <th>Mode / Account</th>
+              <th class="text-end">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for txn in transactions %}
+            <tr>
+              <td>{{ txn.created_at | datetimeformat('%d %b %Y') }}</td>
+              <td class="fw-semibold">{{ txn.txn_id }}</td>
+              <td>
+                <span class="badge {{ 'bg-success-subtle text-success' if txn.txn_type == 'income' else 'bg-danger-subtle text-danger' }}">
+                  {{ txn.txn_type|capitalize }}
+                </span>
+              </td>
+              <td>
+                {% if txn.customer %}
+                <div>{{ txn.customer.name }}</div>
+                {% if txn.customer.company %}
+                <small class="text-muted">{{ txn.customer.company }}</small>
+                {% endif %}
+                {% else %}
+                <div class="text-muted">Unassigned</div>
+                {% endif %}
+                {% if txn.invoice_no %}
+                <small class="text-muted d-block">Invoice: {{ txn.invoice_no }}</small>
+                {% endif %}
+                {% if txn.remarks %}
+                <small class="text-muted d-block">{{ txn.remarks }}</small>
+                {% endif %}
+              </td>
+              <td>
+                <div class="text-uppercase">{{ txn.mode or '—' }}</div>
+                <small class="text-muted text-capitalize">{{ txn.account or '—' }}</small>
+              </td>
+              <td class="text-end {{ 'text-success' if txn.txn_type == 'income' else 'text-danger' }}">
+                {{ txn.amount|inr }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No ledger entries for the selected dates.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
