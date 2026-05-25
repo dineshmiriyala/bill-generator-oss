@@ -71,7 +71,12 @@
       "payment-footer": "Computer generated receipt - Signature not required",
       "dues-table-position": "below_totals",
       "dues-table-heading": "All Past Dues",
-      "invoice_prefix": "INV"
+      "invoice_prefix": "INV",
+      "powered_by": {
+        "enabled": true,
+        "text": "Powered by Bill Generator",
+        "url": "https://github.com/dineshmiriyala/bill-generator-oss"
+      }
     },
     "file_location": "",
     "supabase": {

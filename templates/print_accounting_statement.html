@@ -17,12 +17,44 @@
     max-width: 280px;
     object-fit: contain;
   }
+  .business-name {
+    font-size: 1.65rem;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    color: #111;
+    margin: 0;
+  }
+  .business-tagline {
+    font-size: 0.9rem;
+    color: #555;
+    margin: 0.2rem 0 0;
+    font-weight: 400;
+  }
+  .powered-by {
+    text-align: center;
+    font-size: 0.78rem;
+    color: #888;
+    margin-top: 1rem;
+    letter-spacing: 0.02em;
+  }
+  .powered-by a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .powered-by a:hover {
+    text-decoration: underline;
+  }
   @media print {
     .brand-logo {
       max-height: {{ logo_print_height | round(1) }}px !important;
       height: {{ logo_print_height | round(1) }}px !important;
       width: auto !important;
       max-width: none !important;
+    }
+    .powered-by {
+      color: #999 !important;
+      font-size: 0.7rem !important;
     }
   }
 </style>
@@ -34,9 +66,18 @@
 <div class="container py-4" style="max-width: 940px;">
   <div class="text-center mb-4">
     <div class="mb-2">
-      <img class="brand-logo" src="{{ url_for('static', filename=APP_INFO.business.logo_path.replace('static/', '')) }}"
-           alt="{{ APP_INFO.business.name }}"
-           onerror="this.style.display='none';">
+      {% set logo_path = APP_INFO.business.get('logo_path', '') %}
+      {% set use_custom_logo = logo_path and not logo_path.startswith('static/img/brand-water-mark-') %}
+      {% if use_custom_logo %}
+        <img class="brand-logo" src="{{ url_for('static', filename=logo_path.replace('static/', '')) }}"
+             alt="{{ APP_INFO.business.name }}"
+             onerror="this.style.display='none';">
+      {% else %}
+        <h1 class="business-name">{{ APP_INFO.business.name }}</h1>
+        {% if APP_INFO.business.get('tagline') %}
+          <p class="business-tagline">{{ APP_INFO.business.tagline }}</p>
+        {% endif %}
+      {% endif %}
     </div>
     <p class="text-muted mb-0">{{ APP_INFO.business.address }}</p>
     <p class="text-muted mb-1">{{ APP_INFO.business.phone }} · {{ APP_INFO.business.email }}</p>
@@ -314,6 +355,19 @@
       </div>
     </div>
   </div>
+
+  {% set powered_by = APP_INFO.get('bill_config', {}).get('powered_by', {}) %}
+  {% if powered_by.get('enabled', True) %}
+    {% set powered_by_text = powered_by.get('text') or 'Powered by Bill Generator' %}
+    {% set powered_by_url = powered_by.get('url') or 'https://github.com/dineshmiriyala/bill-generator-oss' %}
+    <div class="powered-by">
+      {% if powered_by_url %}
+        <a href="{{ powered_by_url }}" target="_blank" rel="noopener">{{ powered_by_text }}</a>
+      {% else %}
+        {{ powered_by_text }}
+      {% endif %}
+    </div>
+  {% endif %}
 
   <div class="text-center d-print-none">
     <button class="btn btn-dark px-4" onclick="window.print()">Print Statement</button>

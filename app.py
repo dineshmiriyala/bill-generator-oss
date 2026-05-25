@@ -181,6 +181,11 @@ def _default_info_sections(reference_dt: Optional[datetime] = None) -> dict:
             # Prefix used when generating invoice IDs (e.g. "INV-280526-00042").
             # Override per-install by editing this value or setting BG_INVOICE_PREFIX.
             "invoice_prefix": DEFAULT_INVOICE_PREFIX,
+            "powered_by": {
+                "enabled": True,
+                "text": "Powered by Bill Generator",
+                "url": "https://github.com/dineshmiriyala/bill-generator-oss",
+            },
         },
         "file_location": "",
         "supabase": {
@@ -2181,6 +2186,28 @@ def config():
             if sizes_changed:
                 layout_config.set_sizes(layout_sizes)
                 db.session.commit()
+        elif section == 'bill_config':
+            bill_section = app_info.setdefault('bill_config', {})
+            powered_by_keys = {'powered_by_enabled', 'powered_by_text', 'powered_by_url'}
+            for key, new_value in updates.items():
+                if key in powered_by_keys:
+                    continue
+                existing_value = bill_section.get(key)
+                if new_value == existing_value:
+                    continue
+                if new_value == '' and key in bill_section:
+                    continue
+                bill_section[key] = new_value
+
+            powered_by = bill_section.setdefault('powered_by', {})
+            enabled_values = request.form.getlist('powered_by_enabled')
+            if enabled_values:
+                raw_enabled = (enabled_values[-1] or '').strip().lower()
+                powered_by['enabled'] = raw_enabled in ('true', '1', 'yes', 'on')
+            if 'powered_by_text' in updates:
+                powered_by['text'] = updates['powered_by_text']
+            if 'powered_by_url' in updates:
+                powered_by['url'] = updates['powered_by_url']
         elif section in app_info:
             if isinstance(app_info[section], dict):
                 target_section = app_info[section]
@@ -4904,11 +4931,12 @@ app.jinja_env.globals.update(zip=zip)
 def _inject_branding_globals():
     """Make app-wide branding values available in every template.
 
-    Templates can now reference ``APP_NAME`` and ``APP_INFO`` directly
-    without each route having to pass them in.
+    Templates can reference ``APP_NAME``, ``APP_VERSION``, and ``APP_INFO``
+    directly without each route having to pass them in.
     """
     return {
         "APP_NAME": APP_NAME,
+        "APP_VERSION": APP_VERSION,
         "APP_INFO": APP_INFO,
     }
 

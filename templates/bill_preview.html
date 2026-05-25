@@ -62,11 +62,49 @@
         height: calc(var(--hdr-fs) * 4);
         width: auto;
       }
+      .business-name {
+        font-size: calc(var(--hdr-fs) * 2.2);
+        font-weight: 700;
+        line-height: 1.05;
+        letter-spacing: -0.01em;
+        margin: 0;
+        color: #111;
+      }
+      .business-tagline {
+        font-size: calc(var(--hdr-fs) * 0.95);
+        color: #555;
+        margin: 0.2rem 0 0;
+        font-weight: 400;
+      }
+      .powered-by {
+        text-align: center;
+        font-size: calc(var(--footer-fs) * 0.95);
+        color: #888;
+        margin-top: 1rem;
+        letter-spacing: 0.02em;
+      }
+      .powered-by a {
+        color: inherit;
+        text-decoration: none;
+      }
+      .powered-by a:hover {
+        text-decoration: underline;
+      }
       @media print {
         .brand-logo {
           height: {{ logo_print_height | round(2) }}px !important;
           width: auto !important;
           max-width: none !important;
+        }
+        .business-name {
+          font-size: calc(var(--hdr-fs) * 2) !important;
+        }
+        .business-tagline {
+          font-size: calc(var(--hdr-fs) * 0.85) !important;
+        }
+        .powered-by {
+          font-size: calc(var(--footer-fs) * 0.9) !important;
+          color: #999 !important;
         }
         .qr-wrapper[style*="display: none"] { display: none !important; }
       }
@@ -169,10 +207,19 @@
 
     <div class="container">
         <div class="masthead mb-2">
-          <h1 class="visually-hidden">{{ app_info['business']['name'] }} — ESTD: {{ app_info['business']['estd'] }}</h1>
-          <img class="brand-logo"
-               src="{{ url_for('static', filename=app_info['business']['logo_path'].replace('static/', '')) }}"
-               alt="{{ app_info['business']['name'] }} — ESTD: {{ app_info['business']['estd'] }}">
+          {% set logo_path = app_info['business'].get('logo_path', '') %}
+          {% set use_custom_logo = logo_path and not logo_path.startswith('static/img/brand-water-mark-') %}
+          {% if use_custom_logo %}
+            <h1 class="visually-hidden">{{ app_info['business']['name'] }} — ESTD: {{ app_info['business']['estd'] }}</h1>
+            <img class="brand-logo"
+                 src="{{ url_for('static', filename=logo_path.replace('static/', '')) }}"
+                 alt="{{ app_info['business']['name'] }} — ESTD: {{ app_info['business']['estd'] }}">
+          {% else %}
+            <h1 class="business-name">{{ app_info['business']['name'] }}</h1>
+            {% if app_info['business'].get('tagline') %}
+              <p class="business-tagline">{{ app_info['business']['tagline'] }}</p>
+            {% endif %}
+          {% endif %}
           {% if dues_table_position != 'below_logo' %}
           <h2 class="bill-heading">{{ app_info['bill_config']['heading'] }}</h2>
           {% endif %}
@@ -323,6 +370,19 @@
             {% endfor %}
           </small>
         </div>
+
+        {% set powered_by = app_info['bill_config'].get('powered_by', {}) %}
+        {% if powered_by.get('enabled', True) %}
+          {% set powered_by_text = powered_by.get('text') or 'Powered by Bill Generator' %}
+          {% set powered_by_url = powered_by.get('url') or 'https://github.com/dineshmiriyala/bill-generator-oss' %}
+          <div class="powered-by">
+            {% if powered_by_url %}
+              <a href="{{ powered_by_url }}" target="_blank" rel="noopener">{{ powered_by_text }}</a>
+            {% else %}
+              {{ powered_by_text }}
+            {% endif %}
+          </div>
+        {% endif %}
 
         <div class="text-center mt-4 d-print-none">
             <button onclick="window.print()" class="btn btn-primary">Print / Save as PDF</button>

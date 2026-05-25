@@ -784,6 +784,25 @@
                         <label class="form-label">All Past Dues Table Heading</label>
                         <input type="text" name="dues-table-heading" class="form-control" value="{{ app_info['bill_config'].get('dues-table-heading', 'All Past Dues') or 'All Past Dues' }}">
                       </div>
+
+                      <hr class="my-3">
+                      <h6 class="fw-semibold mb-2">Powered-by Footer</h6>
+                      <p class="text-muted small mb-3">Small credit line printed at the bottom of every bill. Helps others find the project. Disable it if you'd rather not show it.</p>
+
+                      {% set powered_by_cfg = app_info['bill_config'].get('powered_by', {}) %}
+                      <div class="form-check form-switch mb-3">
+                        <input type="hidden" name="powered_by_enabled" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="poweredByEnabled" name="powered_by_enabled" value="1" {{ 'checked' if powered_by_cfg.get('enabled', True) else '' }}>
+                        <label class="form-check-label" for="poweredByEnabled">Show "Powered by" footer on bills</label>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Footer text</label>
+                        <input type="text" name="powered_by_text" class="form-control" placeholder="Powered by Bill Generator" value="{{ powered_by_cfg.get('text', 'Powered by Bill Generator') }}">
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Footer link URL</label>
+                        <input type="url" name="powered_by_url" class="form-control" placeholder="https://github.com/dineshmiriyala/bill-generator-oss" value="{{ powered_by_cfg.get('url', 'https://github.com/dineshmiriyala/bill-generator-oss') }}">
+                      </div>
                     </div>
                   </div>
                 </div>
