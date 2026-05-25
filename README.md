@@ -36,7 +36,9 @@ Pick the option that matches your machine.
    download the file for your OS:
    - **Windows:** `BillGenerator_V4.5.1.exe`
    - **macOS (Apple Silicon, M1/M2/M3/M4):** `BillGenerator_V4.5.1-macos-arm64.zip`
-   - **macOS (Intel):** `BillGenerator_V4.5.1-macos-intel.zip`
+   - **macOS (Intel):** no prebuilt download — run the arm64 build
+     under [Rosetta 2](https://support.apple.com/guide/security/rosetta-2-on-a-mac-with-apple-silicon-secebb113be1/web)
+     or [build from source](#option-b--from-source-development--customization)
 2. Open it (your OS will show a security warning the **first time** —
    see [First launch — bypassing the OS warning](#first-launch--bypassing-the-os-warning)
    below).
@@ -261,9 +263,14 @@ python app.py
 ## Releases via GitHub Actions
 
 The repo ships with a [release workflow](.github/workflows/release.yml)
-that builds Windows, macOS arm64 (Apple Silicon), and macOS Intel
-binaries on GitHub's hosted runners. You don't need a Windows machine
-or multiple Macs — push a version tag and the workflow does the rest.
+that builds Windows and macOS arm64 (Apple Silicon) binaries on
+GitHub's hosted runners. You don't need a Windows machine or a Mac —
+push a version tag and the workflow does the rest.
+
+> Intel macOS isn't built. GitHub's `macos-13` Intel runners are being
+> phased out and rarely allocate within the 24-hour queue timeout.
+> Intel Mac users can run the Apple Silicon build under Rosetta 2 or
+> build from source.
 
 ### Cutting a release
 
@@ -279,15 +286,15 @@ git push origin main --tags
 
 GitHub Actions will:
 
-1. Spin up `windows-latest`, `macos-latest` (Apple Silicon), and
-   `macos-13` (Intel) runners in parallel.
+1. Spin up `windows-latest` and `macos-latest` (Apple Silicon) runners
+   in parallel.
 2. Run the existing `build_exe.bat` / `build_macos.sh` scripts on
    each.
-3. Zip the `.app` bundles so they survive the upload round-trip.
+3. Zip the `.app` bundle so it survives the upload round-trip.
 4. Publish a [GitHub Release](https://docs.github.com/en/repositories/releasing-projects-on-github)
    at `https://github.com/<you>/bill-generator/releases/tag/v4.5.2`
-   with all three binaries attached and auto-generated release notes
-   from your commit history.
+   with both binaries attached and auto-generated release notes from
+   your commit history.
 
 End-users just go to the Releases page and download the file for
 their OS — no build instructions, no Python install, nothing.
@@ -296,15 +303,15 @@ their OS — no build instructions, no Python install, nothing.
 
 Need to smoke-test a build without publishing it? Go to **Actions →
 Build and release → Run workflow** in the GitHub UI. The workflow
-builds all three binaries and uploads them as workflow artifacts
+builds both binaries and uploads them as workflow artifacts
 (downloadable from the run page) without creating a public Release.
 
 ### Cost
 
 Free for public repositories — GitHub gives unlimited Actions minutes
 to public repos. For private repos, you get 2000 free minutes/month;
-a full Windows + 2× macOS build takes ~15 minutes total, so the free
-tier covers ~130 builds/month.
+a Windows + Apple Silicon macOS build takes ~10 minutes total, so the
+free tier covers ~200 builds/month.
 
 ### Distributing through package managers
 
